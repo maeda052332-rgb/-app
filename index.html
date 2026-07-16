@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>せどり在庫管理・運用管理</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- アイコンフォント (FontAwesome) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- グラフ用ライブラリ (Chart.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="logo">
+        <i class="fa-solid fa-boxes-stacked"></i>
+        <h1>せどり在庫管理・運用管理</h1>
+      </div>
+      <p class="subtitle">仕入れた商品をかんたんに記録・管理できます</p>
+    </header>
+
+    <!-- ページ切り替えナビゲーション -->
+    <nav class="app-nav">
+      <button class="nav-tab active" id="tab-inventory">
+        <i class="fa-solid fa-list-check"></i> 在庫管理
+      </button>
+      <button class="nav-tab" id="tab-report">
+        <i class="fa-solid fa-chart-line"></i> 収支レポート
+      </button>
+    </nav>
+
+    <main class="app-main">
+
+      <!-- ================= 在庫管理ページ ================= -->
+      <div id="inventory-page" class="page-content">
+        <!-- 登録フォーム -->
+        <section class="card form-section" id="form-section">
+          <h2 id="form-title"><i class="fa-solid fa-circle-plus"></i> 新しい商品を登録する</h2>
+          <form id="product-form" novalidate>
+            <div class="form-group">
+              <label for="product-name">商品名</label>
+              <input type="text" id="product-name" placeholder="例: スニーカー、ゲームソフトなど" required>
+              <span class="error-message" id="name-error">商品名を入力してください</span>
+            </div>
+
+            <!-- カテゴリー選択（ドロップダウン＋追加・管理ボタン） -->
+            <div class="form-group">
+              <label for="product-category">カテゴリー</label>
+              <div class="category-input-group">
+                <div class="select-wrapper category-select-wrapper">
+                  <select id="product-category">
+                    <!-- JSで動的にロード -->
+                  </select>
+                  <i class="fa-solid fa-chevron-down"></i>
+                </div>
+                <button type="button" id="add-category-btn" class="btn btn-secondary btn-icon" title="新しいカテゴリーを追加">
+                  <i class="fa-solid fa-plus"></i> 追加
+                </button>
+                <button type="button" id="manage-categories-btn" class="btn btn-secondary btn-icon" title="カテゴリーを管理">
+                  <i class="fa-solid fa-gear"></i> 管理
+                </button>
+              </div>
+            </div>
+
+            <!-- 数値入力欄をグリッドで配置 -->
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="purchase-price">仕入れ価格 (円)</label>
+                <div class="price-input-wrapper">
+                  <span class="currency-unit">¥</span>
+                  <input type="number" id="purchase-price" placeholder="例: 1500" min="0" required>
+                </div>
+                <span class="error-message" id="price-error">正しい金額を入力してください</span>
+              </div>
+
+              <div class="form-group">
+                <label for="sell-price">販売価格 (円) <span class="optional-label">※空欄でもOK</span></label>
+                <div class="price-input-wrapper">
+                  <span class="currency-unit">¥</span>
+                  <input type="number" id="sell-price" placeholder="例: 3500" min="0">
+                </div>
+                <span class="error-message" id="sell-price-error">正しい金額を入力してください</span>
+              </div>
+
+              <div class="form-group">
+                <label for="shipping">送料 (円) <span class="optional-label">※空欄でもOK</span></label>
+                <div class="price-input-wrapper">
+                  <span class="currency-unit">¥</span>
+                  <input type="number" id="shipping" placeholder="例: 500" min="0">
+                </div>
+                <span class="error-message" id="shipping-error">正しい金額を入力してください</span>
+              </div>
+
+              <div class="form-group">
+                <label for="fee-rate">手数料 (%) <span class="optional-label">※空欄でもOK</span></label>
+                <div class="percent-input-wrapper">
+                  <input type="number" id="fee-rate" placeholder="例: 10" min="0" max="100">
+                  <span class="percent-unit">%</span>
+                </div>
+                <span class="error-message" id="fee-rate-error">正しい割合を入力してください (0〜100%)</span>
+              </div>
+            </div>
+
+            <!-- 商品の状態 と 仕入れ日の入力グリッド -->
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="product-status">状態</label>
+                <div class="select-wrapper status-select-wrapper">
+                  <select id="product-status">
+                    <option value="inventory">在庫（販売中）</option>
+                    <option value="sold">売了（販売済み）</option>
+                  </select>
+                  <i class="fa-solid fa-chevron-down"></i>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="purchase-date">仕入れ日 <span class="optional-label">※空欄なら今日</span></label>
+                <input type="date" id="purchase-date">
+              </div>
+            </div>
+
+            <!-- 販売日入力欄 (売了のときのみJSで動的に表示) -->
+            <div class="form-group hidden" id="sale-date-group">
+              <label for="sale-date">販売日 <span class="optional-label">※空欄なら今日</span></label>
+              <input type="date" id="sale-date">
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" id="submit-btn" class="btn btn-primary">
+                <i class="fa-solid fa-plus"></i> リストに追加する
+              </button>
+              <button type="button" id="cancel-btn" class="btn btn-secondary hidden">
+                キャンセル
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- 集計サマリー -->
+        <section class="summary-section">
+          <div class="summary-card">
+            <span class="summary-label">登録商品数</span>
+            <span class="summary-value" id="total-count">0 <span class="unit">個</span></span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">合計仕入れ額 (在庫＋売了)</span>
+            <span class="summary-value" id="total-investment">¥0</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">合計売上額 (売了のみ)</span>
+            <span class="summary-value" id="total-sales">¥0</span>
+          </div>
+          <div class="summary-card highlight">
+            <span class="summary-label">合計利益 (売了のみ利益率)</span>
+            <span class="summary-value" id="total-profit">¥0 <span class="profit-rate-summary"
+                id="average-profit-rate">(0%)</span></span>
+          </div>
+        </section>
+
+        <!-- 在庫一覧 -->
+        <section class="card list-section">
+          <div class="section-header">
+            <h2><i class="fa-solid fa-list"></i> 在庫一覧</h2>
+            <!-- 検索フィルターグループ (商品名検索 ＋ 日付フィルター ＋ 状態フィルター) -->
+            <div class="filter-group">
+              <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="search-input" placeholder="商品名や日付(年/月/日)で検索...">
+              </div>
+              <div class="date-filter-box">
+                <i class="fa-solid fa-calendar-days"></i>
+                <input type="date" id="date-filter" title="カレンダーから日付で絞り込み">
+                <button id="clear-date-btn" class="btn-clear-date" title="日付指定をクリア" type="button">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              <!-- 状態フィルターセレクトボックス -->
+              <div class="select-wrapper status-filter-wrapper">
+                <select id="status-filter">
+                  <option value="all">すべての状態</option>
+                  <option value="inventory">在庫のみ</option>
+                  <option value="sold">売了のみ</option>
+                </select>
+                <i class="fa-solid fa-chevron-down"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- 空状態の表示 -->
+          <div id="empty-state" class="empty-state">
+            <i class="fa-solid fa-clipboard-list empty-icon"></i>
+            <p>登録された商品はありません。</p>
+            <p class="empty-hint">上のフォームから商品を登録してみましょう！</p>
+          </div>
+
+          <!-- 商品リスト (PC用テーブル / スマホ用カードをCSSで切り替え) -->
+          <div id="product-list-wrapper" class="hidden">
+            <!-- PC用テーブル -->
+            <table class="product-table">
+              <thead>
+                <tr>
+                  <th>商品名</th>
+                  <th class="text-center">状態</th>
+                  <th class="text-right">仕入れ価格</th>
+                  <th class="text-right">販売価格</th>
+                  <th class="text-right">送料</th>
+                  <th class="text-right">手数料</th>
+                  <th class="text-right">利益 (利益率)</th>
+                  <th class="text-center">仕入れ日/販売日</th>
+                  <th class="text-center">操作</th>
+                </tr>
+              </thead>
+              <tbody id="product-table-body">
+                <!-- JSで動的に挿入 -->
+              </tbody>
+            </table>
+
+            <!-- スマホ用リスト -->
+            <div id="product-mobile-list" class="product-mobile-list">
+              <!-- JSで動的に挿入 -->
+            </div>
+          </div>
+
+          <!-- データの引っ越し・バックアップ管理 -->
+          <div class="data-management-area">
+            <span class="data-manage-title"><i class="fa-solid fa-database"></i> データの引っ越し・バックアップ</span>
+            <div class="data-manage-buttons">
+              <button type="button" id="export-data-btn" class="btn btn-secondary btn-small" title="データをパソコンに保存（書き出し）">
+                <i class="fa-solid fa-file-export"></i> データを保存
+              </button>
+              <label for="import-data-file" class="btn btn-secondary btn-small btn-import-label"
+                title="保存したデータを読み込み（復元）">
+                <i class="fa-solid fa-file-import"></i> データを復元
+              </label>
+              <input type="file" id="import-data-file" accept=".json" style="display: none;">
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ================= 収支レポートページ ================= -->
+      <div id="report-page" class="page-content hidden">
+
+        <!-- 月次収支数値サマリー (診断カードの上に文字で表示) -->
+        <section class="card monthly-summary-section">
+          <div class="diagnostic-header">
+            <h2><i class="fa-solid fa-calculator"></i> 今月の収支結果</h2>
+            <!-- 分析対象の「年月」を選択するセレクトボックス -->
+            <div class="select-wrapper">
+              <select id="report-month-select">
+                <!-- JSで存在する年月を動的に挿入 -->
+              </select>
+              <i class="fa-solid fa-chevron-down"></i>
+            </div>
+          </div>
+
+          <div class="monthly-summary-grid">
+            <div class="monthly-summary-card">
+              <span class="monthly-summary-label">仕入れ総額 (仕入れ月基準)</span>
+              <span class="monthly-summary-value" id="report-total-investment">¥0</span>
+            </div>
+            <div class="monthly-summary-card">
+              <span class="monthly-summary-label">売上総額 (販売月基準)</span>
+              <span class="monthly-summary-value" id="report-total-sales">¥0</span>
+            </div>
+            <div class="monthly-summary-card" id="report-total-profit-card">
+              <span class="monthly-summary-label">手残り利益 (売了のみ利益率)</span>
+              <span class="monthly-summary-value" id="report-total-profit">¥0 <span class="profit-rate-summary"
+                  id="report-average-profit-rate">(0%)</span></span>
+            </div>
+            <div class="monthly-summary-card" id="report-total-cashflow-card">
+              <span class="monthly-summary-label">資金増減 (手元キャッシュ増減)</span>
+              <span class="monthly-summary-value" id="report-total-cashflow">¥0</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 収支診断メッセージ -->
+        <section class="card diagnostic-section">
+          <h2><i class="fa-solid fa-heart-pulse"></i> 今月の運用状況診断</h2>
+
+          <!-- 診断結果カード -->
+          <div id="diagnostic-card" class="diagnostic-card state-empty">
+            <div class="diagnostic-icon-area">
+              <i id="diagnostic-icon" class="fa-solid fa-circle-info"></i>
+            </div>
+            <div class="diagnostic-content-area">
+              <h3 id="diagnostic-title">データがありません</h3>
+              <p id="diagnostic-desc">選択された月の販売データが登録されていません。まずは在庫管理ページから商品の追加や、売れた商品の価格更新を行ってください。</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 資金繰り（キャッシュフロー）診断 -->
+        <section class="card cashflow-section">
+          <h2><i class="fa-solid fa-hand-holding-dollar"></i> 今月の資金繰り（キャッシュフロー）診断</h2>
+          <p class="chart-subtitle" style="margin-top: -1rem; margin-bottom: 1rem;">黒字倒産を防ぐため、今月の総仕入れ額と手元回収額を比較します</p>
+
+          <!-- 資金繰り診断結果カード -->
+          <div id="cashflow-card" class="diagnostic-card state-empty">
+            <div class="diagnostic-icon-area">
+              <i id="cashflow-icon" class="fa-solid fa-circle-info"></i>
+            </div>
+            <div class="diagnostic-content-area">
+              <h3 id="cashflow-title">データがありません</h3>
+              <p id="cashflow-desc">当月中に仕入れた商品、または販売完了した商品のデータがありません。</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- グラフセクション -->
+        <section class="card chart-section">
+          <h2><i class="fa-solid fa-chart-bar"></i> 収支バランスグラフ</h2>
+          <p class="chart-subtitle">仕入れ・売上・利益の規模を視覚的に比較できます</p>
+          <div class="chart-container">
+            <canvas id="revenue-chart"></canvas>
+          </div>
+        </section>
+      </div>
+
+    </main>
+
+    <footer class="app-footer">
+      <p>&copy; 2026 せどり在庫管理・運用管理 - すべてのデータはブラウザに安全に保存されています。</p>
+    </footer>
+  </div>
+
+  <!-- カテゴリー管理用モーダル（ダイアログ） -->
+  <div id="category-modal" class="modal-backdrop hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-gear"></i> カテゴリーの管理</h3>
+        <button type="button" id="close-modal-x" class="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p class="modal-subtitle">カテゴリーの追加や不要な項目の削除ができます</p>
+
+      <!-- 新規追加入力欄 -->
+      <div class="modal-form">
+        <input type="text" id="new-category-input" placeholder="新しいカテゴリー名（例: コスメ）">
+        <button type="button" id="modal-add-category-btn" class="btn btn-primary">
+          <i class="fa-solid fa-plus"></i> 追加
+        </button>
+      </div>
+
+      <!-- カテゴリー一覧リスト -->
+      <ul id="modal-category-list" class="modal-category-list">
+        <!-- JSで動的に挿入 -->
+      </ul>
+
+      <div class="modal-actions">
+        <button type="button" id="close-category-modal-btn" class="btn btn-secondary">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
