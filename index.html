@@ -23,6 +23,13 @@
         <h1>せどり在庫管理・運用管理</h1>
       </div>
       <p class="subtitle">仕入れた商品をかんたんに記録・管理できます</p>
+      <!-- ログイン中のユーザー情報表示エリア -->
+      <div id="user-info-bar" class="user-info-bar hidden">
+        <span id="user-email-display"></span>
+        <button id="logout-btn" class="btn btn-logout" title="ログアウト">
+          <i class="fa-solid fa-right-from-bracket"></i> ログアウト
+        </button>
+      </div>
     </header>
 
     <!-- ページ切り替えナビゲーション -->
@@ -358,6 +365,38 @@
       </div>
     </div>
   </div>
+
+  <!-- ログイン・サインアップ用モーダル（認証されていないときに表示） -->
+  <div id="auth-container" class="auth-container">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <i class="fa-solid fa-boxes-stacked"></i>
+        <h2>せどり在庫管理・運用管理</h2>
+      </div>
+      <p class="auth-subtitle">クラウドデータ同期システム</p>
+      <form id="auth-form" novalidate>
+        <div class="form-group">
+          <label for="auth-email">メールアドレス</label>
+          <input type="email" id="auth-email" placeholder="example@email.com" required>
+          <span class="error-message" id="auth-email-error">正しいメールアドレスを入力してください</span>
+        </div>
+        <div class="form-group">
+          <label for="auth-password">パスワード</label>
+          <input type="password" id="auth-password" placeholder="6文字以上で入力してください" required>
+          <span class="error-message" id="auth-password-error">パスワードは6文字以上で入力してください</span>
+        </div>
+        <div class="auth-actions">
+          <button type="submit" id="auth-submit-btn" class="btn btn-primary">ログイン</button>
+          <button type="button" id="auth-switch-btn" class="btn btn-secondary">新規アカウントを作成する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Firebase SDK (Compat v10) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <script src="app.js"></script>
 </body>

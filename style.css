@@ -1732,3 +1732,129 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* ==========================================
+   13. ログイン・認証画面のスタイル
+   ========================================== */
+.auth-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  transition: var(--transition);
+}
+
+.auth-container.hidden {
+  display: none !important;
+}
+
+.auth-card {
+  background-color: var(--card-bg);
+  border-radius: 24px;
+  padding: 2rem;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: modalSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.auth-logo i {
+  font-size: 1.8rem;
+  color: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary-light), #bae6fd);
+  padding: 0.5rem;
+  border-radius: 12px;
+}
+
+.auth-logo h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0;
+}
+
+.auth-subtitle {
+  text-align: center;
+  color: var(--text-sub);
+  font-size: 0.85rem;
+  margin-top: -0.75rem;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.auth-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.auth-actions .btn {
+  width: 100%;
+}
+
+/* ユーザーバーのスタイル */
+.user-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding: 0.4rem 1rem;
+  background-color: var(--bg-color);
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-sub);
+}
+
+.user-info-bar.hidden {
+  display: none !important;
+}
+
+#user-email-display {
+  word-break: break-all;
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.btn-logout {
+  background-color: var(--error-bg) !important;
+  color: var(--error-color) !important;
+  border: 1px solid #fca5a5 !important;
+  padding: 0.3rem 0.75rem !important;
+  font-size: 0.75rem !important;
+  border-radius: 20px !important;
+  width: auto !important;
+  box-shadow: none !important;
+}
+
+.btn-logout:hover {
+  background-color: var(--error-color) !important;
+  color: white !important;
+}
+
+/* アプリ本体のコンテナ制御 */
+body.auth-mode {
+  overflow: hidden;
+}

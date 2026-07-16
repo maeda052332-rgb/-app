@@ -2,6 +2,35 @@
 // せどり在庫管理・運用管理 - ロジック (app.js)
 // ==========================================
 
+// ==========================================
+// Firebase 接続設定 (Firebase コンソールから取得した設定をここに貼り付けてください)
+// ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBY_8OFC-d9zV6FG3uJXidpsjNKpdY-0ng",
+  authDomain: "sedoriapp-ce892.firebaseapp.com",
+  projectId: "sedoriapp-ce892",
+  storageBucket: "sedoriapp-ce892.firebasestorage.app",
+  messagingSenderId: "38069026118",
+  appId: "1:38069026118:web:94aca0a9e42d409e377947",
+  measurementId: "G-Q3EWM50VLH"
+};
+
+let db = null;
+let currentUser = null;
+let unsubscribeProducts = null;
+
+// Firebase の初期化（APIキーが初期値のままでない場合のみ実行）
+if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+  try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+  } catch (e) {
+    console.error("Firebase初期化失敗:", e);
+  }
+} else {
+  console.warn("Firebase設定が未完了です。app.jsのfirebaseConfigに設定を入力してください。LocalStorageフォールバックが稼働します。");
+}
+
 // アプリのデータ状態
 let products = [];
 let categories = []; // カテゴリーリスト
@@ -147,6 +176,9 @@ function calculateFee(sellPrice, feeRate, oldFee) {
 // --- カテゴリー管理処理 ---
 
 function loadCategories() {
+  // Firebaseがログイン中の場合は、ログイン時に同期されるため何もしない
+  if (db && currentUser) return;
+
   const saved = localStorage.getItem('sedori_categories');
   categories = [];
   if (saved) {
@@ -174,7 +206,13 @@ function loadCategories() {
 }
 
 function saveCategories() {
-  localStorage.setItem('sedori_categories', JSON.stringify(categories));
+  if (db && currentUser) {
+    db.collection('users').doc(currentUser.uid).collection('categories').doc('list').set({
+      names: categories
+    }).catch(e => console.error("Firestoreカテゴリ保存失敗:", e));
+  } else {
+    localStorage.setItem('sedori_categories', JSON.stringify(categories));
+  }
 }
 
 function updateCategorySelects(selectedValue) {
@@ -246,9 +284,12 @@ function updateModalCategoryList() {
   });
 }
 
-// --- 商品データの読み書き (LocalStorage) ---
+// --- 商品データの読み書き ---
 
 function loadData() {
+  // Firebaseがログイン中の場合は、ログイン時に同期されるため何もしない
+  if (db && currentUser) return;
+
   const saved = localStorage.getItem('sedori_inventory');
   products = [];
   if (saved) {
@@ -534,48 +575,69 @@ function escapeHtml(str) {
 function addProduct(name, price, sellPrice, shipping, feeRate, status, purchaseDate, saleDate, category) {
   const today = getFormattedDate();
   const newProduct = {
-    id: Date.now().toString(),
     name: name.trim(),
     category: category || 'その他',
     price: parseInt(price, 10) || 0,
     sellPrice: sellPrice ? parseInt(sellPrice, 10) : 0,
     shipping: shipping ? parseInt(shipping, 10) : 0,
-    feeRate: (feeRate !== '' && !isNaN(feeRate)) ? parseFloat(feeRate) : undefined,
+    feeRate: (feeRate !== '' && !isNaN(feeRate)) ? parseFloat(feeRate) : null,
     status: status || 'inventory',
     purchaseDate: purchaseDate ? formatDateInput(purchaseDate) : today,
     saleDate: status === 'sold' ? (saleDate ? formatDateInput(saleDate) : today) : '',
     date: today
   };
 
-  products.unshift(newProduct);
-  saveData();
-  render();
+  if (db && currentUser) {
+    // Firestoreに追加
+    newProduct.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    db.collection('users').doc(currentUser.uid).collection('products').add(newProduct)
+      .catch(err => alert("追加エラー: " + err.message));
+  } else {
+    // ローカルフォールバック
+    newProduct.id = Date.now().toString();
+    products.unshift(newProduct);
+    saveData();
+    render();
+  }
 }
 
 function updateProduct(id, name, price, sellPrice, shipping, feeRate, status, purchaseDate, saleDate, category) {
   const today = getFormattedDate();
-  products = products.map(product => {
-    if (product.id === id) {
-      return {
-        ...product,
-        name: name.trim(),
-        category: category || 'その他',
-        price: parseInt(price, 10) || 0,
-        sellPrice: sellPrice ? parseInt(sellPrice, 10) : 0,
-        shipping: shipping ? parseInt(shipping, 10) : 0,
-        feeRate: (feeRate !== '' && !isNaN(feeRate)) ? parseFloat(feeRate) : undefined,
-        status: status || 'inventory',
-        purchaseDate: purchaseDate ? formatDateInput(purchaseDate) : today,
-        saleDate: status === 'sold' ? (saleDate ? formatDateInput(saleDate) : today) : '',
-        fee: undefined
-      };
-    }
-    return product;
-  });
+  const updatedFields = {
+    name: name.trim(),
+    category: category || 'その他',
+    price: parseInt(price, 10) || 0,
+    sellPrice: sellPrice ? parseInt(sellPrice, 10) : 0,
+    shipping: shipping ? parseInt(shipping, 10) : 0,
+    feeRate: (feeRate !== '' && !isNaN(feeRate)) ? parseFloat(feeRate) : null,
+    status: status || 'inventory',
+    purchaseDate: purchaseDate ? formatDateInput(purchaseDate) : today,
+    saleDate: status === 'sold' ? (saleDate ? formatDateInput(saleDate) : today) : ''
+  };
 
-  saveData();
-  cancelEdit();
-  render();
+  if (db && currentUser) {
+    // Firestoreを更新
+    updatedFields.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    db.collection('users').doc(currentUser.uid).collection('products').doc(id).update(updatedFields)
+      .then(() => cancelEdit())
+      .catch(err => alert("更新エラー: " + err.message));
+  } else {
+    // ローカルフォールバック
+    products = products.map(product => {
+      if (product.id === id) {
+        return {
+          ...product,
+          ...updatedFields,
+          fee: undefined
+        };
+      }
+      return product;
+    });
+
+    saveData();
+    cancelEdit();
+    render();
+  }
 }
 
 function deleteProduct(id) {
@@ -587,9 +649,17 @@ function deleteProduct(id) {
     if (editingProductId === id) {
       cancelEdit();
     }
-    products = products.filter(product => product.id !== id);
-    saveData();
-    render();
+
+    if (db && currentUser) {
+      // Firestoreから削除
+      db.collection('users').doc(currentUser.uid).collection('products').doc(id).delete()
+        .catch(err => alert("削除エラー: " + err.message));
+    } else {
+      // ローカルフォールバック
+      products = products.filter(product => product.id !== id);
+      saveData();
+      render();
+    }
   }
 }
 
@@ -1194,40 +1264,81 @@ if (importDataFile) {
       try {
         const importedData = JSON.parse(evt.target.result);
 
-        // 最低限のデータ整合性チェック
         if (importedData && (Array.isArray(importedData.products) || Array.isArray(importedData))) {
-          const confirmMsg = 'データを読み込みますか？\n現在ブラウザに保存されているデータはすべて上書きされます。';
+          const confirmMsg = 'データを読み込みますか？\n現在保存されているデータはすべて上書き（追加）されます。';
           if (confirm(confirmMsg)) {
             const newProducts = Array.isArray(importedData.products) ? importedData.products : importedData;
             const newCategories = Array.isArray(importedData.categories) ? importedData.categories : DEFAULT_CATEGORIES;
 
-            // クレンジングと型変換を行いデータを保護
-            products = newProducts.map(p => {
-              if (!p || typeof p !== 'object') return null;
-              const legacyDate = p.date || getFormattedDate();
-              return {
-                id: p.id ? String(p.id) : Date.now().toString() + Math.random(),
-                name: p.name ? String(p.name) : '無題の商品',
-                category: p.category ? String(p.category) : 'その他',
-                price: Number(p.price) || 0,
-                sellPrice: p.sellPrice !== undefined ? Number(p.sellPrice) : 0,
-                shipping: p.shipping !== undefined ? Number(p.shipping) : 0,
-                feeRate: (p.feeRate !== undefined && p.feeRate !== '' && !isNaN(p.feeRate)) ? Number(p.feeRate) : undefined,
-                fee: p.fee !== undefined ? Number(p.fee) : 0,
-                status: p.status === 'sold' ? 'sold' : 'inventory',
-                purchaseDate: p.purchaseDate ? String(p.purchaseDate) : legacyDate,
-                saleDate: p.saleDate ? String(p.saleDate) : '',
-                date: legacyDate
-              };
-            }).filter(Boolean);
+            if (db && currentUser) {
+              // Firebase接続時：Firestoreに書き込み
+              const productsRef = db.collection('users').doc(currentUser.uid).collection('products');
+              
+              // 既存のデータを全削除する（上書き要件のため）
+              db.collection('users').doc(currentUser.uid).collection('products').get().then(snapshot => {
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                return batch.commit();
+              }).then(() => {
+                // 新しいデータを追加
+                const promises = newProducts.map(p => {
+                  const legacyDate = p.date || getFormattedDate();
+                  const initialStatus = p.status !== undefined ? p.status : (Number(p.sellPrice) > 0 ? 'sold' : 'inventory');
+                  return productsRef.add({
+                    name: p.name ? String(p.name) : '無題の商品',
+                    category: p.category ? String(p.category) : 'その他',
+                    price: Number(p.price) || 0,
+                    sellPrice: p.sellPrice !== undefined ? Number(p.sellPrice) : 0,
+                    shipping: p.shipping !== undefined ? Number(p.shipping) : 0,
+                    feeRate: (p.feeRate !== undefined && p.feeRate !== '' && !isNaN(p.feeRate)) ? Number(p.feeRate) : null,
+                    status: initialStatus === 'sold' ? 'sold' : 'inventory',
+                    purchaseDate: p.purchaseDate ? String(p.purchaseDate) : legacyDate,
+                    saleDate: p.saleDate ? String(p.saleDate) : '',
+                    date: legacyDate,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                  });
+                });
 
-            categories = [...new Set([...DEFAULT_CATEGORIES, ...newCategories])];
+                // カテゴリーも更新
+                categories = [...new Set([...DEFAULT_CATEGORIES, ...newCategories])];
+                saveCategories();
 
-            saveData();
-            saveCategories();
-            updateCategorySelects();
-            render();
-            alert('データの復元に成功しました！');
+                return Promise.all(promises);
+              }).then(() => {
+                alert('クラウドへのデータ復元に成功しました！');
+              }).catch(err => {
+                alert('データの復元に失敗しました: ' + err.message);
+              });
+
+            } else {
+              // ローカルフォールバック
+              products = newProducts.map(p => {
+                if (!p || typeof p !== 'object') return null;
+                const legacyDate = p.date || getFormattedDate();
+                return {
+                  id: p.id ? String(p.id) : Date.now().toString() + Math.random(),
+                  name: p.name ? String(p.name) : '無題の商品',
+                  category: p.category ? String(p.category) : 'その他',
+                  price: Number(p.price) || 0,
+                  sellPrice: p.sellPrice !== undefined ? Number(p.sellPrice) : 0,
+                  shipping: p.shipping !== undefined ? Number(p.shipping) : 0,
+                  feeRate: (p.feeRate !== undefined && p.feeRate !== '' && !isNaN(p.feeRate)) ? Number(p.feeRate) : undefined,
+                  fee: p.fee !== undefined ? Number(p.fee) : 0,
+                  status: p.status === 'sold' ? 'sold' : 'inventory',
+                  purchaseDate: p.purchaseDate ? String(p.purchaseDate) : legacyDate,
+                  saleDate: p.saleDate ? String(p.saleDate) : '',
+                  date: legacyDate
+                };
+              }).filter(Boolean);
+
+              categories = [...new Set([...DEFAULT_CATEGORIES, ...newCategories])];
+
+              saveData();
+              saveCategories();
+              updateCategorySelects();
+              render();
+              alert('データの復元に成功しました！');
+            }
           }
         } else {
           alert('正しいバックアップファイルではありません。');
@@ -1235,18 +1346,169 @@ if (importDataFile) {
       } catch (err) {
         alert('ファイルの読み込みに失敗しました。正しいJSONファイルかご確認ください。');
       }
-      // 同じファイルを再度読み込めるよう値をクリア
       importDataFile.value = '';
     };
     reader.readAsText(file);
   };
 }
 
+// Firebase 関連要素の取得とイベント設定
+const authContainer = safeGetElement('auth-container');
+const authForm = safeGetElement('auth-form');
+const authEmailInput = safeGetElement('auth-email');
+const authPasswordInput = safeGetElement('auth-password');
+const authSubmitBtn = safeGetElement('auth-submit-btn');
+const authSwitchBtn = safeGetElement('auth-switch-btn');
+const userInfoBar = safeGetElement('user-info-bar');
+const userEmailDisplay = safeGetElement('user-email-display');
+const logoutBtn = safeGetElement('logout-btn');
+
+let isSignUpMode = false;
+
+if (authSwitchBtn) {
+  authSwitchBtn.onclick = function () {
+    isSignUpMode = !isSignUpMode;
+    if (isSignUpMode) {
+      if (authSubmitBtn) authSubmitBtn.textContent = '新規登録して開始';
+      authSwitchBtn.textContent = '登録済みの方（ログイン画面へ）';
+    } else {
+      if (authSubmitBtn) authSubmitBtn.textContent = 'ログイン';
+      authSwitchBtn.textContent = '新規アカウントを作成する';
+    }
+  };
+}
+
+if (authForm) {
+  authForm.onsubmit = function (e) {
+    e.preventDefault();
+    if (!db) {
+      alert("Firebaseの設定（firebaseConfig）が完了していないため、ログイン機能は利用できません。app.jsの設定をご確認ください。");
+      return;
+    }
+
+    const email = authEmailInput ? authEmailInput.value.trim() : '';
+    const password = authPasswordInput ? authPasswordInput.value : '';
+
+    if (!email || password.length < 6) {
+      alert("メールアドレスおよび6文字以上のパスワードを正しく入力してください。");
+      return;
+    }
+
+    if (isSignUpMode) {
+      firebase.auth().createUserWithEmailAndPassword(email, password)
+        .then(() => {
+          alert("アカウントが作成され、ログインしました！");
+        })
+        .catch(err => {
+          alert("新規登録エラー: " + err.message);
+        });
+    } else {
+      firebase.auth().signInWithEmailAndPassword(email, password)
+        .catch(err => {
+          alert("ログインエラー: " + err.message);
+        });
+    }
+  };
+}
+
+if (logoutBtn) {
+  logoutBtn.onclick = function () {
+    if (confirm("ログアウトしますか？")) {
+      firebase.auth().signOut()
+        .then(() => {
+          alert("ログアウトしました。");
+        })
+        .catch(err => {
+          alert("ログアウトエラー: " + err.message);
+        });
+    }
+  };
+}
+
+// データのリアルタイム同期開始
+function startSyncData() {
+  if (!db || !currentUser) return;
+
+  // 1. 商品データのリアルタイム同期
+  const userProductsRef = db.collection('users').doc(currentUser.uid).collection('products');
+  unsubscribeProducts = userProductsRef.orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+    products = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      products.push({
+        id: doc.id,
+        ...data,
+        purchaseDate: data.purchaseDate || data.date,
+        saleDate: data.saleDate || ''
+      });
+    });
+    render();
+  }, err => {
+    console.error("Firestore同期エラー:", err);
+  });
+
+  // 2. カテゴリーのロード
+  const userCategoriesRef = db.collection('users').doc(currentUser.uid).collection('categories').doc('list');
+  userCategoriesRef.get().then(doc => {
+    if (doc.exists) {
+      const data = doc.data();
+      if (Array.isArray(data.names)) {
+        categories = [...new Set([...DEFAULT_CATEGORIES, ...data.names])];
+      }
+    } else {
+      categories = [...DEFAULT_CATEGORIES];
+    }
+    updateCategorySelects();
+    render();
+  }).catch(err => {
+    console.error("カテゴリ取得エラー:", err);
+    categories = [...DEFAULT_CATEGORIES];
+    updateCategorySelects();
+    render();
+  });
+}
+
 // --- 初期化 ---
 window.onload = function () {
-  loadCategories();
-  updateCategorySelects();
-  loadData();
   setupTabs();
-  render();
+
+  if (db) {
+    // Firebase設定済みの場合は認証状態を監視
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        currentUser = user;
+        if (authContainer) authContainer.classList.add('hidden');
+        if (userEmailDisplay) userEmailDisplay.textContent = user.email;
+        if (userInfoBar) userInfoBar.classList.remove('hidden');
+        document.body.classList.remove('auth-mode');
+        
+        startSyncData();
+      } else {
+        currentUser = null;
+        if (authContainer) authContainer.classList.remove('hidden');
+        if (userInfoBar) userInfoBar.classList.add('hidden');
+        document.body.classList.add('auth-mode');
+        
+        if (unsubscribeProducts) {
+          unsubscribeProducts();
+          unsubscribeProducts = null;
+        }
+        
+        products = [];
+        categories = [...DEFAULT_CATEGORIES];
+        updateCategorySelects();
+        render();
+      }
+    });
+  } else {
+    // Firebase未設定の場合はLocalStorageフォールバック
+    if (authContainer) authContainer.classList.add('hidden');
+    if (userInfoBar) userInfoBar.classList.add('hidden');
+    document.body.classList.remove('auth-mode');
+
+    loadCategories();
+    updateCategorySelects();
+    loadData();
+    render();
+  }
 };
