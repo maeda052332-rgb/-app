@@ -1858,3 +1858,9 @@ body {
 body.auth-mode {
   overflow: hidden;
 }
+
+/* 在庫期間（経過日数）の値下げアラート */
+.alert-elapsed {
+  color: #ea580c !important; /* マイルドな警告オレンジ */
+  font-weight: 700 !important;
+}

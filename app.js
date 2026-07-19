@@ -64,6 +64,7 @@ const purchasePriceInput = safeGetElement('purchase-price');
 const sellPriceInput = safeGetElement('sell-price');
 const shippingInput = safeGetElement('shipping');
 const feeRateInput = safeGetElement('fee-rate');
+const salesChannelInput = safeGetElement('sales-channel'); // 販売先
 const productStatusInput = safeGetElement('product-status'); // 状態
 const purchaseDateInput = safeGetElement('purchase-date'); // 仕入れ日
 const saleDateInput = safeGetElement('sale-date'); // 販売日
@@ -163,14 +164,43 @@ function formatDateToInput(val) {
   return val.replace(/\//g, '-');
 }
 
+// 販売先ごとのデフォルト手数料率 (%)
+const CHANNEL_FEES = {
+  'mercari': 10,
+  'rakuma': 10,
+  'yahooflima': 5,
+  'yahoofuka': 10,
+  'other': 0
+};
+
 // 手数料（円）を計算する
-function calculateFee(sellPrice, feeRate, oldFee) {
+function calculateFee(sellPrice, feeRate, oldFee, salesChannel) {
   const sPrice = Number(sellPrice) || 0;
-  // feeRate が undefined や null、または空文字列の場合は oldFee (手数料金額) を採用する
   if (feeRate !== undefined && feeRate !== null && feeRate !== '' && !isNaN(feeRate)) {
     return Math.round(sPrice * (Number(feeRate) / 100));
   }
-  return Number(oldFee) || 0;
+  // feeRateが空の場合、salesChannelのデフォルト率を適用する
+  const channel = salesChannel || 'mercari';
+  const defaultRate = CHANNEL_FEES[channel] !== undefined ? CHANNEL_FEES[channel] : 10;
+  return Math.round(sPrice * (defaultRate / 100));
+}
+
+// 経過日数（在庫期間）の計算
+function calculateDaysElapsed(purchaseDateStr) {
+  if (!purchaseDateStr) return 0;
+  const parts = purchaseDateStr.split('/');
+  if (parts.length !== 3) return 0;
+  // 月は 0-indexed にするため -1 する
+  const purchaseDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  const today = new Date();
+  
+  // 時刻部分を0時に合わせて日数のみで比較
+  today.setHours(0, 0, 0, 0);
+  purchaseDate.setHours(0, 0, 0, 0);
+  
+  const diffTime = today.getTime() - purchaseDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays >= 0 ? diffDays : 0;
 }
 
 // --- カテゴリー管理処理 ---
@@ -311,6 +341,7 @@ function loadData() {
             shipping: p.shipping !== undefined ? Number(p.shipping) : 0,
             feeRate: (p.feeRate !== undefined && p.feeRate !== '' && !isNaN(p.feeRate)) ? Number(p.feeRate) : undefined,
             fee: p.fee !== undefined ? Number(p.fee) : 0,
+            salesChannel: p.salesChannel || 'mercari', // デフォルトはメルカリ
             status: initialStatus === 'sold' ? 'sold' : 'inventory',
             purchaseDate: p.purchaseDate ? String(p.purchaseDate) : legacyDate,
             saleDate: p.saleDate ? String(p.saleDate) : (initialStatus === 'sold' ? legacyDate : ''),
@@ -367,7 +398,7 @@ function render() {
     const price = Number(item.price) || 0;
     const sellPrice = Number(item.sellPrice) || 0;
     const shipping = Number(item.shipping) || 0;
-    const fee = calculateFee(sellPrice, item.feeRate, item.fee);
+    const fee = calculateFee(sellPrice, item.feeRate, item.fee, item.salesChannel);
     return sum + (sellPrice - price - shipping - fee);
   }, 0);
 
@@ -421,7 +452,7 @@ function render() {
       const price = Number(product.price) || 0;
       const sellPrice = Number(product.sellPrice) || 0;
       const shipping = Number(product.shipping) || 0;
-      const fee = calculateFee(sellPrice, product.feeRate, product.fee);
+      const fee = calculateFee(sellPrice, product.feeRate, product.fee, product.salesChannel);
       const profit = sellPrice - price - shipping - fee;
       const profitRate = sellPrice > 0 ? Math.round((profit / sellPrice) * 100) : 0;
 
@@ -432,18 +463,31 @@ function render() {
         itemProfitClass = 'profit-negative';
       }
 
-      const feeText = product.feeRate !== undefined && product.feeRate !== 0
-        ? `${formatCurrency(fee)} <span class="profit-rate" style="display:inline;">(${product.feeRate}%)</span>`
-        : formatCurrency(fee);
+      const currentFeeRate = product.feeRate !== undefined && product.feeRate !== null && product.feeRate !== ''
+        ? product.feeRate
+        : (CHANNEL_FEES[product.salesChannel || 'mercari'] || 0);
+
+      const feeText = `${formatCurrency(fee)} <span class="profit-rate" style="display:inline;">(${currentFeeRate}%)</span>`;
 
       const badgeHtml = product.status === 'sold'
         ? '<span class="badge badge-sold">売了</span>'
         : '<span class="badge badge-inventory">在庫</span>';
 
+      let elapsedHtml = '';
+      if (product.status === 'inventory') {
+        const days = calculateDaysElapsed(product.purchaseDate);
+        if (days >= 30) {
+          elapsedHtml = `<div class="date-cell-item alert-elapsed">⚠️ 経過: <span>${days}日</span></div>`;
+        } else {
+          elapsedHtml = `<div class="date-cell-item">経過: <span>${days}日</span></div>`;
+        }
+      }
+
       const dateCellHtml = `
         <div class="date-cell-container">
           <div class="date-cell-item">仕: <span>${product.purchaseDate || '-'}</span></div>
           ${product.status === 'sold' ? `<div class="date-cell-item">売: <span>${product.saleDate || '-'}</span></div>` : ''}
+          ${elapsedHtml}
         </div>
       `;
 
@@ -486,7 +530,7 @@ function render() {
       const price = Number(product.price) || 0;
       const sellPrice = Number(product.sellPrice) || 0;
       const shipping = Number(product.shipping) || 0;
-      const fee = calculateFee(sellPrice, product.feeRate, product.fee);
+      const fee = calculateFee(sellPrice, product.feeRate, product.fee, product.salesChannel);
       const profit = sellPrice - price - shipping - fee;
       const profitRate = sellPrice > 0 ? Math.round((profit / sellPrice) * 100) : 0;
 
@@ -497,17 +541,29 @@ function render() {
         itemProfitClass = 'profit-negative';
       }
 
-      const feeText = product.feeRate !== undefined && product.feeRate !== 0
-        ? `${formatCurrency(fee)} (${product.feeRate}%)`
-        : formatCurrency(fee);
+      const currentFeeRate = product.feeRate !== undefined && product.feeRate !== null && product.feeRate !== ''
+        ? product.feeRate
+        : (CHANNEL_FEES[product.salesChannel || 'mercari'] || 0);
+
+      const feeText = `${formatCurrency(fee)} (${currentFeeRate}%)`;
 
       const badgeHtml = product.status === 'sold'
         ? '<span class="badge badge-sold">売了</span>'
         : '<span class="badge badge-inventory">在庫</span>';
 
+      let elapsedText = '';
+      if (product.status === 'inventory') {
+        const days = calculateDaysElapsed(product.purchaseDate);
+        if (days >= 30) {
+          elapsedText = ` <span class="alert-elapsed">⚠️ 経過: ${days}日</span>`;
+        } else {
+          elapsedText = ` <span>経過: ${days}日</span>`;
+        }
+      }
+
       const mobileDateText = product.status === 'sold'
         ? `<i class="fa-regular fa-calendar"></i> 仕: ${product.purchaseDate || '-'} / 売: ${product.saleDate || '-'}`
-        : `<i class="fa-regular fa-calendar"></i> 仕: ${product.purchaseDate || '-'}`;
+        : `<i class="fa-regular fa-calendar"></i> 仕: ${product.purchaseDate || '-'}${elapsedText}`;
 
       const card = document.createElement('div');
       card.className = 'mobile-product-card';
@@ -572,7 +628,7 @@ function escapeHtml(str) {
 
 // --- 在庫追加・更新・削除 ---
 
-function addProduct(name, price, sellPrice, shipping, feeRate, status, purchaseDate, saleDate, category) {
+function addProduct(name, price, sellPrice, shipping, feeRate, status, purchaseDate, saleDate, category, salesChannel) {
   const today = getFormattedDate();
   const newProduct = {
     name: name.trim(),
@@ -581,6 +637,7 @@ function addProduct(name, price, sellPrice, shipping, feeRate, status, purchaseD
     sellPrice: sellPrice ? parseInt(sellPrice, 10) : 0,
     shipping: shipping ? parseInt(shipping, 10) : 0,
     feeRate: (feeRate !== '' && !isNaN(feeRate)) ? parseFloat(feeRate) : null,
+    salesChannel: salesChannel || 'mercari',
     status: status || 'inventory',
     purchaseDate: purchaseDate ? formatDateInput(purchaseDate) : today,
     saleDate: status === 'sold' ? (saleDate ? formatDateInput(saleDate) : today) : '',
@@ -601,7 +658,7 @@ function addProduct(name, price, sellPrice, shipping, feeRate, status, purchaseD
   }
 }
 
-function updateProduct(id, name, price, sellPrice, shipping, feeRate, status, purchaseDate, saleDate, category) {
+function updateProduct(id, name, price, sellPrice, shipping, feeRate, status, purchaseDate, saleDate, category, salesChannel) {
   const today = getFormattedDate();
   const updatedFields = {
     name: name.trim(),
@@ -610,6 +667,7 @@ function updateProduct(id, name, price, sellPrice, shipping, feeRate, status, pu
     sellPrice: sellPrice ? parseInt(sellPrice, 10) : 0,
     shipping: shipping ? parseInt(shipping, 10) : 0,
     feeRate: (feeRate !== '' && !isNaN(feeRate)) ? parseFloat(feeRate) : null,
+    salesChannel: salesChannel || 'mercari',
     status: status || 'inventory',
     purchaseDate: purchaseDate ? formatDateInput(purchaseDate) : today,
     saleDate: status === 'sold' ? (saleDate ? formatDateInput(saleDate) : today) : ''
@@ -682,6 +740,18 @@ if (productStatusInput) {
   };
 }
 
+// 販売先セレクト変更イベント
+if (salesChannelInput) {
+  salesChannelInput.onchange = function (e) {
+    const channel = e.target.value;
+    if (feeRateInput) {
+      if (CHANNEL_FEES[channel] !== undefined) {
+        feeRateInput.value = CHANNEL_FEES[channel];
+      }
+    }
+  };
+}
+
 function startEdit(id) {
   const product = products.find(p => p.id === id);
   if (!product) return;
@@ -693,6 +763,7 @@ function startEdit(id) {
   if (sellPriceInput) sellPriceInput.value = product.sellPrice || '';
   if (shippingInput) shippingInput.value = product.shipping || '';
   if (productStatusInput) productStatusInput.value = product.status || 'inventory';
+  if (salesChannelInput) salesChannelInput.value = product.salesChannel || 'mercari';
 
   // 日付のセット
   if (purchaseDateInput) purchaseDateInput.value = formatDateToInput(product.purchaseDate);
@@ -724,6 +795,7 @@ function cancelEdit() {
   editingProductId = null;
   if (productForm) productForm.reset();
   toggleSaleDateInput('inventory');
+  if (salesChannelInput) salesChannelInput.value = 'mercari';
   updateCategorySelects(); // カテゴリーをリセット
   clearErrors();
 
@@ -833,7 +905,7 @@ function renderReportPage() {
 
   const totalSales = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.sellPrice) || 0), 0);
   const totalShipping = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.shipping) || 0), 0);
-  const totalFee = monthlySoldProducts.reduce((sum, item) => sum + calculateFee(item.sellPrice, item.feeRate, item.fee), 0);
+  const totalFee = monthlySoldProducts.reduce((sum, item) => sum + calculateFee(item.sellPrice, item.feeRate, item.fee, item.salesChannel), 0);
 
   const totalSoldInvestment = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
   const totalProfit = totalSales - totalSoldInvestment - totalShipping - totalFee;
@@ -1115,12 +1187,14 @@ if (productForm) {
       const purchaseDateValue = purchaseDateInput ? purchaseDateInput.value : '';
       const saleDateValue = saleDateInput ? saleDateInput.value : '';
       const categoryValue = productCategoryInput ? productCategoryInput.value : 'その他';
+      const salesChannelValue = salesChannelInput ? salesChannelInput.value : 'mercari';
 
       if (editingProductId) {
-        updateProduct(editingProductId, nameValue, priceValue, sellPriceValue, shippingValue, feeRateValue, statusValue, purchaseDateValue, saleDateValue, categoryValue);
+        updateProduct(editingProductId, nameValue, priceValue, sellPriceValue, shippingValue, feeRateValue, statusValue, purchaseDateValue, saleDateValue, categoryValue, salesChannelValue);
       } else {
-        addProduct(nameValue, priceValue, sellPriceValue, shippingValue, feeRateValue, statusValue, purchaseDateValue, saleDateValue, categoryValue);
+        addProduct(nameValue, priceValue, sellPriceValue, shippingValue, feeRateValue, statusValue, purchaseDateValue, saleDateValue, categoryValue, salesChannelValue);
         productForm.reset();
+        if (salesChannelInput) salesChannelInput.value = 'mercari';
         updateCategorySelects(); // カテゴリーをリセット
         if (productNameInput) productNameInput.focus();
       }
@@ -1291,6 +1365,7 @@ if (importDataFile) {
                     sellPrice: p.sellPrice !== undefined ? Number(p.sellPrice) : 0,
                     shipping: p.shipping !== undefined ? Number(p.shipping) : 0,
                     feeRate: (p.feeRate !== undefined && p.feeRate !== '' && !isNaN(p.feeRate)) ? Number(p.feeRate) : null,
+                    salesChannel: p.salesChannel || 'mercari', // デフォルトはメルカリ
                     status: initialStatus === 'sold' ? 'sold' : 'inventory',
                     purchaseDate: p.purchaseDate ? String(p.purchaseDate) : legacyDate,
                     saleDate: p.saleDate ? String(p.saleDate) : '',
@@ -1324,6 +1399,7 @@ if (importDataFile) {
                   shipping: p.shipping !== undefined ? Number(p.shipping) : 0,
                   feeRate: (p.feeRate !== undefined && p.feeRate !== '' && !isNaN(p.feeRate)) ? Number(p.feeRate) : undefined,
                   fee: p.fee !== undefined ? Number(p.fee) : 0,
+                  salesChannel: p.salesChannel || 'mercari', // デフォルトはメルカリ
                   status: p.status === 'sold' ? 'sold' : 'inventory',
                   purchaseDate: p.purchaseDate ? String(p.purchaseDate) : legacyDate,
                   saleDate: p.saleDate ? String(p.saleDate) : '',
@@ -1439,7 +1515,8 @@ function startSyncData() {
         id: doc.id,
         ...data,
         purchaseDate: data.purchaseDate || data.date,
-        saleDate: data.saleDate || ''
+        saleDate: data.saleDate || '',
+        salesChannel: data.salesChannel || 'mercari'
       });
     });
     render();

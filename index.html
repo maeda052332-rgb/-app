@@ -105,6 +105,18 @@
               </div>
 
               <div class="form-group">
+                <label for="sales-channel">販売先（販路）</label>
+                <div class="select-wrapper" style="margin-bottom: 0.75rem; width: 100%;">
+                  <select id="sales-channel">
+                    <option value="mercari">メルカリ</option>
+                    <option value="rakuma">ラクマ</option>
+                    <option value="yahooflima">Yahoo!フリマ（PayPayフリマ）</option>
+                    <option value="yahoofuka">ヤフオク!</option>
+                    <option value="other">その他（手入力）</option>
+                  </select>
+                  <i class="fa-solid fa-chevron-down"></i>
+                </div>
+
                 <label for="fee-rate">手数料 (%) <span class="optional-label">※空欄でもOK</span></label>
                 <div class="percent-input-wrapper">
                   <input type="number" id="fee-rate" placeholder="例: 10" min="0" max="100">
