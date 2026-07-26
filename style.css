@@ -1,5 +1,5 @@
 /* ==========================================
-   らくらく在庫管理 - スタイルシート (style.css)
+   らくらく在庫管琁E- スタイルシーチE(style.css)
    ========================================== */
 
 /* 1. 基本設定と変数定義 */
@@ -7,29 +7,29 @@
   --primary-color: #0284c7;
   /* メインの青色 */
   --primary-hover: #0369a1;
-  /* ボタンホバー時の濃い青 */
+  /* ボタンホバー時�E濁E��靁E*/
   --primary-light: #e0f2fe;
-  /* 薄い青（背景など） */
+  /* 薁E��青（背景など�E�E*/
   --accent-color: #10b981;
-  /* アクセントの緑色（利益など） */
+  /* アクセント�E緑色�E�利益など�E�E*/
   --accent-light: #ecfdf5;
-  /* 薄い緑 */
+  /* 薁E��緁E*/
   --bg-color: #f8fafc;
-  /* アプリ全体の背景色 */
+  /* アプリ全体�E背景色 */
   --card-bg: #ffffff;
-  /* カードの背景色 */
+  /* カード�E背景色 */
   --text-main: #1e293b;
-  /* メインの文字色 */
+  /* メインの斁E��色 */
   --text-sub: #64748b;
-  /* 補足の文字色 */
+  /* 補足の斁E��色 */
   --border-color: #e2e8f0;
-  /* 線の色 */
+  /* 線�E色 */
   --error-color: #ef4444;
   /* エラーの赤色 */
   --error-bg: #fef2f2;
-  /* エラーの薄い赤 */
+  /* エラーの薁E��赤 */
   --radius: 16px;
-  /* 角の丸み */
+  /* 角�E丸み */
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
@@ -50,10 +50,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 2. レイアウトコンテナ */
+/* 2. レイアウトコンチE�� */
 .app-container {
   max-width: 1050px;
-  /* PCでのテーブル横幅を考慮して少し広めに設定 */
+  /* PCでのチE�Eブル横幁E��老E�Eして少し庁E��に設宁E*/
   margin: 0 auto;
   padding: 1rem 0.75rem;
   display: flex;
@@ -97,7 +97,7 @@ body {
   font-size: 0.85rem;
 }
 
-/* ページ切り替えナビゲーション */
+/* ペ�Eジ刁E��替えナビゲーション */
 .app-nav {
   display: flex;
   gap: 0.5rem;
@@ -142,7 +142,7 @@ body {
   border-radius: 3px;
 }
 
-/* 4. メインコンテンツと共通カード */
+/* 4. メインコンチE��チE��共通カーチE*/
 .app-main {
   flex: 1;
   display: flex;
@@ -176,12 +176,12 @@ body {
   color: var(--primary-color);
 }
 
-/* 登録フォームの編集モード時スタイル */
+/* 登録フォームの編雁E��ード時スタイル */
 .form-section.edit-mode {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15), var(--shadow-lg);
   background-color: #f0f9ff;
-  /* 非常に薄い青 */
+  /* 非常に薁E��靁E*/
 }
 
 /* 5. 登録フォーム */
@@ -200,7 +200,7 @@ body {
   font-size: 0.85rem;
 }
 
-/* 任意入力の注記ラベル */
+/* 任意�E力�E注記ラベル */
 .optional-label {
   font-size: 0.75rem;
   color: var(--text-sub);
@@ -227,7 +227,7 @@ body {
   box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
 }
 
-/* 数値入力欄用のグリッド (スマホは2列2行のグリッドにしてすっきりさせる) */
+/* 数値入力欁E��のグリチE�� (スマ�Eは2刁E行�EグリチE��にしてすっきりさせめE */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -235,7 +235,7 @@ body {
   margin-bottom: 0.75rem;
 }
 
-/* 価格入力の円マークラッパー */
+/* 価格入力�E冁E�EークラチE��ー */
 .price-input-wrapper {
   position: relative;
   display: flex;
@@ -253,10 +253,10 @@ body {
 
 .price-input-wrapper input {
   padding-left: 2rem !important;
-  /* 円マークの分だけ余白を空ける */
+  /* 冁E�Eークの刁E��け余白を空ける */
 }
 
-/* パーセント入力の%マークラッパー */
+/* パ�Eセント�E力�E%マ�EクラチE��ー */
 .percent-input-wrapper {
   position: relative;
   display: flex;
@@ -274,10 +274,10 @@ body {
 
 .percent-input-wrapper input {
   padding-right: 2rem !important;
-  /* パーセント記号の分だけ右余白を空ける */
+  /* パ�Eセント記号の刁E��け右余白を空ける */
 }
 
-/* エラーメッセージ */
+/* エラーメチE��ージ */
 .error-message {
   display: none;
   color: var(--error-color);
@@ -295,14 +295,14 @@ body {
   display: block;
 }
 
-/* ボタン関係のレイアウト */
+/* ボタン関係�EレイアウチE*/
 .form-actions {
   display: flex;
   gap: 0.75rem;
   margin-top: 0.5rem;
 }
 
-/* ボタン共通 */
+/* ボタン共送E*/
 .btn {
   display: inline-flex;
   align-items: center;
@@ -373,14 +373,14 @@ body {
   color: white;
 }
 
-/* 一覧用の操作ボタンエリア */
+/* 一覧用の操作�Eタンエリア */
 .action-buttons {
   display: flex;
   justify-content: center;
   gap: 0.35rem;
 }
 
-/* 6. 集計サマリー (スマホでは2列×2行、PCでは4列) */
+/* 6. 雁E��サマリー (スマ�Eでは2列ÁE行、PCでは4刁E */
 .summary-section {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -406,7 +406,7 @@ body {
 
 .summary-value {
   font-size: 1.15rem;
-  /* スマホでの折り返しを防ぐために小さめに調整 */
+  /* スマ�Eでの折り返しを防ぐために小さめに調整 */
   font-weight: 700;
   color: var(--text-main);
   word-break: break-all;
@@ -418,7 +418,7 @@ body {
   color: var(--text-sub);
 }
 
-/* 利益率のミニテキスト */
+/* 利益率のミニチE��スチE*/
 .profit-rate-summary {
   display: inline-block;
   font-size: 0.8rem;
@@ -452,7 +452,7 @@ body {
   margin-bottom: 0;
 }
 
-/* 検索窓 ＋ フィルターグループ */
+/* 検索突E�E�EフィルターグルーチE*/
 .filter-group {
   display: flex;
   flex-direction: column;
@@ -539,7 +539,7 @@ body {
   color: var(--error-color);
 }
 
-/* セレクトボックスの装飾（リッチデザイン） */
+/* セレクト�EチE��スの裁E���E�リチE��チE��イン�E�E*/
 .select-wrapper {
   position: relative;
   display: inline-flex;
@@ -548,7 +548,7 @@ body {
 
 .select-wrapper select {
   appearance: none;
-  /* デフォルトの矢印を非表示 */
+  /* チE��ォルト�E矢印を非表示 */
   background-color: #ffffff;
   border: 1.5px solid var(--border-color);
   border-radius: 10px;
@@ -575,12 +575,12 @@ body {
   pointer-events: none;
 }
 
-/* 登録用の状態セレクトボックス用幅設定 */
+/* 登録用の状態セレクト�EチE��ス用幁E��宁E*/
 .status-select-wrapper {
   width: 100%;
 }
 
-/* ステータスバッジ（在庫/売了）のスタイル */
+/* スチE�Eタスバッジ�E�在庫/売亁E���Eスタイル */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -604,7 +604,7 @@ body {
   border: 1px solid var(--border-color);
 }
 
-/* 空状態の表示 */
+/* 空状態�E表示 */
 .empty-state {
   text-align: center;
   padding: 2.5rem 1rem;
@@ -631,7 +631,7 @@ body {
   display: none !important;
 }
 
-/* 利益の色分け表示用 */
+/* 利益�E色刁E��表示用 */
 .profit-positive {
   color: #059669;
   /* グリーン */
@@ -640,7 +640,7 @@ body {
 
 .profit-negative {
   color: #ef4444;
-  /* レッド */
+  /* レチE�� */
   font-weight: 700;
 }
 
@@ -656,7 +656,7 @@ body {
   display: block;
 }
 
-/* 8. 商品リスト表示 (PC: テーブル, スマホ: カード) */
+/* 8. 啁E��リスト表示 (PC: チE�Eブル, スマ�E: カーチE */
 .product-table {
   width: 100%;
   border-collapse: collapse;
@@ -684,7 +684,7 @@ body {
   font-size: 0.9rem;
 }
 
-/* 仕入れ日・販売日のセル内レイアウト */
+/* 仕�Eれ日・販売日のセル冁E��イアウチE*/
 .date-cell-container {
   display: flex;
   flex-direction: column;
@@ -721,7 +721,7 @@ body {
   white-space: nowrap;
 }
 
-/* スマホ用リスト (カード型) */
+/* スマ�E用リスチE(カード型) */
 .product-mobile-list {
   display: flex;
   flex-direction: column;
@@ -797,7 +797,7 @@ body {
   padding-top: 0.5rem;
 }
 
-/* 収支レポートページのスタイル */
+/* 収支レポ�Eト�Eージのスタイル */
 .diagnostic-header {
   display: flex;
   justify-content: space-between;
@@ -812,7 +812,7 @@ body {
   margin-bottom: 0 !important;
 }
 
-/* 月次収支数値サマリー（テキスト表示用カード） */
+/* 月次収支数値サマリー�E�テキスト表示用カード！E*/
 .monthly-summary-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -896,7 +896,7 @@ body {
 }
 
 
-/* カテゴリー選択欄のスタイル */
+/* カチE��リー選択欁E�Eスタイル */
 .category-input-group {
   display: flex;
   gap: 0.5rem;
@@ -915,7 +915,7 @@ body {
   white-space: nowrap;
 }
 
-/* 一覧でのカテゴリータグ表示 */
+/* 一覧でのカチE��リータグ表示 */
 .category-tag {
   display: inline-flex;
   align-items: center;
@@ -937,7 +937,14 @@ body {
   margin-left: 0.35rem;
 }
 
-/* カテゴリー管理モーダルのスタイル（グラスモーフィズム） */
+.store-tag {
+  background-color: #e0e7ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
+  margin-left: 0.25rem;
+}
+
+/* カチE��リー管琁E��ーダルのスタイル�E�グラスモーフィズム�E�E*/
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -1096,7 +1103,7 @@ body {
   padding: 0.6rem 1.25rem;
 }
 
-/* 収支診断カード */
+/* 収支診断カーチE*/
 .diagnostic-card {
   display: flex;
   gap: 1rem;
@@ -1209,7 +1216,7 @@ body {
   color: var(--text-sub);
 }
 
-/* 10. メディアクエリ (PC・タブレット表示の自動最適化) */
+/* 10. メチE��アクエリ (PC・タブレチE��表示の自動最適匁E */
 @media (min-width: 768px) {
   .app-container {
     padding: 2.5rem 2rem;
@@ -1235,7 +1242,7 @@ body {
     font-size: 1.25rem;
   }
 
-  /* 登録フォームの幅制限 */
+  /* 登録フォームの幁E��陁E*/
   .form-section {
     max-width: 720px;
     margin-left: auto;
@@ -1269,7 +1276,7 @@ body {
     min-width: 160px;
   }
 
-  /* サマリーカード */
+  /* サマリーカーチE*/
   .summary-section {
     grid-template-columns: 1fr 1fr 1fr 1.2fr;
     gap: 1rem;
@@ -1313,30 +1320,30 @@ body {
     width: 130px;
   }
 
-  /* PCではテーブルを表示 */
+  /* PCではチE�Eブルを表示 */
   .product-table {
     display: table;
   }
 
-  /* PCテーブル各列の幅比率 (状態・仕入れ/販売日追加後の9列最適化) */
+  /* PCチE�Eブル吁E�Eの幁E��率 (状態�E仕�EめE販売日追加後�E9列最適匁E */
   .product-table th:nth-child(1),
   .product-table td:nth-child(1) {
     width: 20%;
   }
 
-  /* 商品名 */
+  /* 啁E��吁E*/
   .product-table th:nth-child(2),
   .product-table td:nth-child(2) {
     width: 9%;
   }
 
-  /* 状態 */
+  /* 状慁E*/
   .product-table th:nth-child(3),
   .product-table td:nth-child(3) {
     width: 10%;
   }
 
-  /* 仕入れ */
+  /* 仕�EめE*/
   .product-table th:nth-child(4),
   .product-table td:nth-child(4) {
     width: 10%;
@@ -1354,25 +1361,25 @@ body {
     width: 11%;
   }
 
-  /* 手数料 */
+  /* 手数斁E*/
   .product-table th:nth-child(7),
   .product-table td:nth-child(7) {
     width: 12%;
   }
 
-  /* 利益 */
+  /* 利盁E*/
   .product-table th:nth-child(8),
   .product-table td:nth-child(8) {
     width: 12%;
   }
 
-  /* 仕入れ日/販売日 (幅を少し広めに設定) */
+  /* 仕�Eれ日/販売日 (幁E��少し庁E��に設宁E */
   .product-table th:nth-child(9),
   .product-table td:nth-child(9) {
     width: 18%;
   }
 
-  /* 操作ボタン */
+  /* 操作�Eタン */
 
   .product-table tbody tr {
     transition: background-color 0.15s ease;
@@ -1386,7 +1393,7 @@ body {
     display: none;
   }
 
-  /* レポートページのPC表示 */
+  /* レポ�Eト�EージのPC表示 */
   .chart-container {
     height: 320px;
   }
@@ -1396,7 +1403,7 @@ body {
     padding: 0.5rem 2rem 0.5rem 1rem;
   }
 
-  /* レポート内の文字数値サマリー：PCでは4列 */
+  /* レポ�Eト�Eの斁E��数値サマリー�E�PCでは4刁E*/
   .monthly-summary-grid {
     grid-template-columns: 1fr 1fr 1fr 1.2fr;
     gap: 1rem;
@@ -1429,28 +1436,28 @@ body {
   }
 }
 
-/* 11. スマホ専用の追加最適化（極小画面・480px以下用） */
+/* 11. スマ�E専用の追加最適化（極小画面・480px以下用�E�E*/
 @media (max-width: 480px) {
   .app-container {
     padding: 0.75rem 0.5rem;
-    /* スマホでは余白を詰めて表示エリアを広くする */
+    /* スマ�Eでは余白を詰めて表示エリアを庁E��する */
   }
 
   .form-grid {
     grid-template-columns: 1fr;
-    /* スマホではフォームを1列にして入力しやすく */
+    /* スマ�EではフォームめE列にして入力しめE��ぁE*/
     gap: 0.5rem;
   }
 
   .category-input-group .btn-icon {
     padding: 0.7rem 0.5rem;
     font-size: 0.75rem;
-    /* カテゴリー追加・管理ボタンがはみ出さないよう縮小 */
+    /* カチE��リー追加・管琁E�Eタンが�Eみ出さなぁE��ぁE��封E*/
   }
 
   .summary-section {
     gap: 0.4rem;
-    /* 集計カード間の余白を詰め、金額折り返しを防止 */
+    /* 雁E��カード間の余白を詰め、E��額折り返しを防止 */
   }
 
   .summary-card {
@@ -1459,14 +1466,14 @@ body {
 
   .summary-value {
     font-size: 1rem;
-    /* 金額はみ出しの防止 */
+    /* 金額�Eみ出し�E防止 */
   }
 
   .summary-card.highlight .summary-value {
     font-size: 1.05rem;
   }
 
-  /* レポートサマリー（2列×2行にして縦に長くなりすぎるのを防止） */
+  /* レポ�Eトサマリー�E�E列ÁE行にして縦に長くなりすぎるのを防止�E�E*/
   .monthly-summary-grid {
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
@@ -1486,7 +1493,7 @@ body {
   }
 }
 
-/* 12. データの移行・バックアップエリアの装飾 */
+/* 12. チE�Eタの移行�EバックアチE�Eエリアの裁E�� */
 .data-management-area {
   display: flex;
   justify-content: space-between;
@@ -1664,7 +1671,7 @@ body {
   gap: 1rem;
 }
 
-/* スイッチ風トグルチェックボックス */
+/* スイチE��風トグルチェチE��ボックス */
 .switch-container {
   display: inline-flex;
   align-items: center;
@@ -1718,7 +1725,7 @@ body {
   line-height: 1.4;
 }
 
-/* 同期ボタンのローディングアニメーション */
+/* 同期ボタンのローチE��ングアニメーション */
 .fa-spin-custom {
   animation: spin 1s linear infinite;
 }
@@ -1812,7 +1819,7 @@ body {
   width: 100%;
 }
 
-/* ユーザーバーのスタイル */
+/* ユーザーバ�Eのスタイル */
 .user-info-bar {
   display: flex;
   align-items: center;

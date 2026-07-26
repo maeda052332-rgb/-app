@@ -34,6 +34,7 @@ if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
 // アプリのデータ状態
 let products = [];
 let categories = []; // カテゴリーリスト
+let stores = []; // 購入店リスト
 let searchQuery = '';
 let dateFilterQuery = ''; // カレンダー日付フィルター値
 let statusFilterQuery = 'all'; // 状態フィルター値 (all, inventory, sold)
@@ -42,6 +43,9 @@ let revenueChartInstance = null; // Chart.jsのインスタンス保持用
 
 // デフォルトのカテゴリー
 const DEFAULT_CATEGORIES = ['本', 'おもちゃ', '家電', 'アパレル', 'ゲーム', 'その他'];
+
+// デフォルトの購入店
+const DEFAULT_STORES = ['店舗仕入れ', '電脳仕入れ', 'ブックオフ', 'ハードオフ', 'セカンドストリート', 'メルカリ', 'ヤフオク', 'その他'];
 
 // DOM要素の安全な取得ヘルパー
 function safeGetElement(id) {
@@ -60,6 +64,9 @@ const productNameInput = safeGetElement('product-name');
 const productCategoryInput = safeGetElement('product-category'); // カテゴリー選択
 const addCategoryBtn = safeGetElement('add-category-btn'); // カテゴリー簡易追加ボタン
 const manageCategoriesBtn = safeGetElement('manage-categories-btn'); // カテゴリー管理ボタン
+const productStoreInput = safeGetElement('product-store'); // 購入店選択
+const addStoreBtn = safeGetElement('add-store-btn'); // 購入店簡易追加ボタン
+const manageStoresBtn = safeGetElement('manage-stores-btn'); // 購入店管理ボタン
 const purchasePriceInput = safeGetElement('purchase-price');
 const sellPriceInput = safeGetElement('sell-price');
 const shippingInput = safeGetElement('shipping');
@@ -80,6 +87,14 @@ const closeCategoryModalBtn = safeGetElement('close-category-modal-btn');
 const newCategoryInput = safeGetElement('new-category-input');
 const modalAddCategoryBtn = safeGetElement('modal-add-category-btn');
 const modalCategoryList = safeGetElement('modal-category-list');
+
+// 購入店管理モーダル要素
+const storeModal = safeGetElement('store-modal');
+const closeStoreModalX = safeGetElement('close-store-modal-x');
+const closeStoreModalBtn = safeGetElement('close-store-modal-btn');
+const newStoreInput = safeGetElement('new-store-input');
+const modalAddStoreBtn = safeGetElement('modal-add-store-btn');
+const modalStoreList = safeGetElement('modal-store-list');
 
 // 検索・フィルター要素
 const searchInput = safeGetElement('search-input');
@@ -314,6 +329,111 @@ function updateModalCategoryList() {
   });
 }
 
+// --- 購入店管理処理 ---
+
+function loadStores() {
+  if (db && currentUser) return;
+
+  const saved = localStorage.getItem('sedori_stores');
+  stores = [];
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        stores = parsed.filter(Boolean).map(String);
+      }
+    } catch (e) {
+      console.error('購入店のパースに失敗しました:', e);
+    }
+  }
+  
+  if (!Array.isArray(stores) || stores.length === 0) {
+    stores = [...DEFAULT_STORES];
+  }
+  
+  if (!stores.includes('その他')) {
+    stores.push('その他');
+  }
+  
+  saveStores();
+}
+
+function saveStores() {
+  if (db && currentUser) {
+    db.collection('users').doc(currentUser.uid).collection('stores').doc('list').set({
+      names: stores
+    }).catch(e => console.error("Firestore購入店保存失敗:", e));
+  } else {
+    localStorage.setItem('sedori_stores', JSON.stringify(stores));
+  }
+}
+
+function updateStoreSelects(selectedValue) {
+  if (!productStoreInput) return;
+  const currentVal = selectedValue || productStoreInput.value;
+  productStoreInput.innerHTML = '';
+  stores.forEach(str => {
+    const option = document.createElement('option');
+    option.value = str;
+    option.textContent = str;
+    productStoreInput.appendChild(option);
+  });
+
+  if (stores.includes(currentVal)) {
+    productStoreInput.value = currentVal;
+  } else {
+    productStoreInput.value = stores[0] || 'その他';
+  }
+}
+
+function addStore(name) {
+  const cleanName = name.trim();
+  if (!cleanName) return;
+  if (stores.includes(cleanName)) {
+    alert('その購入店は既に登録されています。');
+    return;
+  }
+  stores.push(cleanName);
+  saveStores();
+  updateStoreSelects(cleanName);
+  updateModalStoreList();
+}
+
+function deleteStore(name) {
+  if (name === 'その他') {
+    alert('「その他」項目は削除できません。');
+    return;
+  }
+  if (confirm(`購入店「${name}」を削除しますか？\n（すでに登録されている商品の購入店名は書き換わりません）`)) {
+    stores = stores.filter(str => str !== name);
+    saveStores();
+    updateStoreSelects();
+    updateModalStoreList();
+  }
+}
+
+function updateModalStoreList() {
+  if (!modalStoreList) return;
+  modalStoreList.innerHTML = '';
+  stores.forEach(str => {
+    const li = document.createElement('li');
+    li.textContent = str;
+
+    if (str !== 'その他') {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn-delete-category';
+      deleteBtn.innerHTML = '<i class="fa-regular fa-trash-can"></i>';
+      deleteBtn.title = 'この購入店を削除';
+      deleteBtn.onclick = function () {
+        deleteStore(str);
+      };
+      li.appendChild(deleteBtn);
+    }
+    modalStoreList.appendChild(li);
+  });
+}
+
 // --- 商品データの読み書き ---
 
 function loadData() {
@@ -335,7 +455,8 @@ function loadData() {
           return {
             id: p.id ? String(p.id) : Date.now().toString() + Math.random(),
             name: p.name ? String(p.name) : '無題の商品',
-            category: p.category ? String(p.category) : 'その他', // カテゴリー互換処理
+            category: p.category ? String(p.category) : 'その他',
+            purchaseStore: p.purchaseStore ? String(p.purchaseStore) : '店舗仕入れ',
             price: Number(p.price) || 0,
             sellPrice: p.sellPrice !== undefined ? Number(p.sellPrice) : 0,
             shipping: p.shipping !== undefined ? Number(p.shipping) : 0,
@@ -363,16 +484,17 @@ function saveData() {
 // --- 描画処理 (在庫管理) ---
 
 function render() {
-  // 1. 検索クエリでフィルター (商品名 or カテゴリー or 仕入れ日/販売日の部分一致)
+  // 1. 検索クエリでフィルター (商品名 or カテゴリー or 購入店 or 仕入れ日/販売日の部分一致)
   let filteredProducts = products;
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
     filteredProducts = filteredProducts.filter(product => {
       const name = (product.name || '').toLowerCase();
       const cat = (product.category || '').toLowerCase();
+      const store = (product.purchaseStore || '').toLowerCase();
       const pDate = (product.purchaseDate || '').toLowerCase();
       const sDate = (product.saleDate || '').toLowerCase();
-      return name.includes(q) || cat.includes(q) || pDate.includes(q) || sDate.includes(q);
+      return name.includes(q) || cat.includes(q) || store.includes(q) || pDate.includes(q) || sDate.includes(q);
     });
   }
 
@@ -497,6 +619,7 @@ function render() {
           <strong>${escapeHtml(product.name)}</strong>
           <br>
           <span class="category-tag">${escapeHtml(product.category || 'その他')}</span>
+          ${product.purchaseStore ? `<span class="category-tag store-tag">🏪 ${escapeHtml(product.purchaseStore)}</span>` : ''}
         </td>
         <td class="text-center">${badgeHtml}</td>
         <td class="text-right price-text">${formatCurrency(price)}</td>
@@ -573,6 +696,7 @@ function render() {
             ${badgeHtml}
             ${escapeHtml(product.name)}
             <span class="category-tag badge-category">${escapeHtml(product.category || 'その他')}</span>
+            ${product.purchaseStore ? `<span class="category-tag badge-category store-tag">🏪 ${escapeHtml(product.purchaseStore)}</span>` : ''}
           </span>
           <span class="mobile-card-price">
             <span class="${itemProfitClass}">${formatCurrency(profit)}</span> <span class="profit-rate" style="display:inline;">(${profitRate}%)</span>
@@ -628,11 +752,12 @@ function escapeHtml(str) {
 
 // --- 在庫追加・更新・削除 ---
 
-function addProduct(name, price, sellPrice, shipping, feeRate, status, purchaseDate, saleDate, category, salesChannel) {
+function addProduct(name, price, sellPrice, shipping, feeRate, status, purchaseDate, saleDate, category, salesChannel, purchaseStore) {
   const today = getFormattedDate();
   const newProduct = {
     name: name.trim(),
     category: category || 'その他',
+    purchaseStore: purchaseStore || '店舗仕入れ',
     price: parseInt(price, 10) || 0,
     sellPrice: sellPrice ? parseInt(sellPrice, 10) : 0,
     shipping: shipping ? parseInt(shipping, 10) : 0,
@@ -658,11 +783,12 @@ function addProduct(name, price, sellPrice, shipping, feeRate, status, purchaseD
   }
 }
 
-function updateProduct(id, name, price, sellPrice, shipping, feeRate, status, purchaseDate, saleDate, category, salesChannel) {
+function updateProduct(id, name, price, sellPrice, shipping, feeRate, status, purchaseDate, saleDate, category, salesChannel, purchaseStore) {
   const today = getFormattedDate();
   const updatedFields = {
     name: name.trim(),
     category: category || 'その他',
+    purchaseStore: purchaseStore || '店舗仕入れ',
     price: parseInt(price, 10) || 0,
     sellPrice: sellPrice ? parseInt(sellPrice, 10) : 0,
     shipping: shipping ? parseInt(shipping, 10) : 0,
@@ -759,6 +885,7 @@ function startEdit(id) {
   editingProductId = id;
   if (productNameInput) productNameInput.value = product.name || '';
   if (productCategoryInput) productCategoryInput.value = product.category || 'その他';
+  if (productStoreInput) productStoreInput.value = product.purchaseStore || '店舗仕入れ';
   if (purchasePriceInput) purchasePriceInput.value = product.price || '';
   if (sellPriceInput) sellPriceInput.value = product.sellPrice || '';
   if (shippingInput) shippingInput.value = product.shipping || '';
@@ -797,6 +924,7 @@ function cancelEdit() {
   toggleSaleDateInput('inventory');
   if (salesChannelInput) salesChannelInput.value = 'mercari';
   updateCategorySelects(); // カテゴリーをリセット
+  updateStoreSelects(); // 購入店をリセット
   clearErrors();
 
   if (formSection) formSection.classList.remove('edit-mode');
@@ -1188,14 +1316,16 @@ if (productForm) {
       const saleDateValue = saleDateInput ? saleDateInput.value : '';
       const categoryValue = productCategoryInput ? productCategoryInput.value : 'その他';
       const salesChannelValue = salesChannelInput ? salesChannelInput.value : 'mercari';
+      const purchaseStoreValue = productStoreInput ? productStoreInput.value : '店舗仕入れ';
 
       if (editingProductId) {
-        updateProduct(editingProductId, nameValue, priceValue, sellPriceValue, shippingValue, feeRateValue, statusValue, purchaseDateValue, saleDateValue, categoryValue, salesChannelValue);
+        updateProduct(editingProductId, nameValue, priceValue, sellPriceValue, shippingValue, feeRateValue, statusValue, purchaseDateValue, saleDateValue, categoryValue, salesChannelValue, purchaseStoreValue);
       } else {
-        addProduct(nameValue, priceValue, sellPriceValue, shippingValue, feeRateValue, statusValue, purchaseDateValue, saleDateValue, categoryValue, salesChannelValue);
+        addProduct(nameValue, priceValue, sellPriceValue, shippingValue, feeRateValue, statusValue, purchaseDateValue, saleDateValue, categoryValue, salesChannelValue, purchaseStoreValue);
         productForm.reset();
         if (salesChannelInput) salesChannelInput.value = 'mercari';
         updateCategorySelects(); // カテゴリーをリセット
+        updateStoreSelects(); // 購入店をリセット
         if (productNameInput) productNameInput.focus();
       }
     }
@@ -1246,6 +1376,49 @@ if (modalAddCategoryBtn) {
       if (val) {
         addCategory(val);
         newCategoryInput.value = '';
+      }
+    }
+  };
+}
+
+// 購入店管理関係のイベントハンドラー
+if (addStoreBtn) {
+  addStoreBtn.onclick = function () {
+    const newStr = prompt('新しい購入店名を入力してください：\n（例：ブックオフ、セカンドストリート、オンライン など）');
+    if (newStr && newStr.trim()) {
+      addStore(newStr.trim());
+    }
+  };
+}
+
+if (manageStoresBtn) {
+  manageStoresBtn.onclick = function () {
+    if (storeModal) {
+      updateModalStoreList();
+      storeModal.classList.remove('hidden');
+    }
+  };
+}
+
+if (closeStoreModalX) {
+  closeStoreModalX.onclick = function () {
+    if (storeModal) storeModal.classList.add('hidden');
+  };
+}
+
+if (closeStoreModalBtn) {
+  closeStoreModalBtn.onclick = function () {
+    if (storeModal) storeModal.classList.add('hidden');
+  };
+}
+
+if (modalAddStoreBtn) {
+  modalAddStoreBtn.onclick = function () {
+    if (newStoreInput) {
+      const val = newStoreInput.value.trim();
+      if (val) {
+        addStore(val);
+        newStoreInput.value = '';
       }
     }
   };
@@ -1309,7 +1482,8 @@ if (exportDataBtn) {
   exportDataBtn.onclick = function () {
     const dataToExport = {
       products: products,
-      categories: categories
+      categories: categories,
+      stores: stores
     };
     const jsonString = JSON.stringify(dataToExport, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -1343,6 +1517,7 @@ if (importDataFile) {
           if (confirm(confirmMsg)) {
             const newProducts = Array.isArray(importedData.products) ? importedData.products : importedData;
             const newCategories = Array.isArray(importedData.categories) ? importedData.categories : DEFAULT_CATEGORIES;
+            const newStores = Array.isArray(importedData.stores) ? importedData.stores : DEFAULT_STORES;
 
             if (db && currentUser) {
               // Firebase接続時：Firestoreに書き込み
@@ -1361,6 +1536,7 @@ if (importDataFile) {
                   return productsRef.add({
                     name: p.name ? String(p.name) : '無題の商品',
                     category: p.category ? String(p.category) : 'その他',
+                    purchaseStore: p.purchaseStore ? String(p.purchaseStore) : '店舗仕入れ',
                     price: Number(p.price) || 0,
                     sellPrice: p.sellPrice !== undefined ? Number(p.sellPrice) : 0,
                     shipping: p.shipping !== undefined ? Number(p.shipping) : 0,
@@ -1374,9 +1550,11 @@ if (importDataFile) {
                   });
                 });
 
-                // カテゴリーも更新
+                // カテゴリーと購入店も更新
                 categories = [...new Set([...DEFAULT_CATEGORIES, ...newCategories])];
                 saveCategories();
+                stores = [...new Set([...DEFAULT_STORES, ...newStores])];
+                saveStores();
 
                 return Promise.all(promises);
               }).then(() => {
@@ -1394,6 +1572,7 @@ if (importDataFile) {
                   id: p.id ? String(p.id) : Date.now().toString() + Math.random(),
                   name: p.name ? String(p.name) : '無題の商品',
                   category: p.category ? String(p.category) : 'その他',
+                  purchaseStore: p.purchaseStore ? String(p.purchaseStore) : '店舗仕入れ',
                   price: Number(p.price) || 0,
                   sellPrice: p.sellPrice !== undefined ? Number(p.sellPrice) : 0,
                   shipping: p.shipping !== undefined ? Number(p.shipping) : 0,
@@ -1408,10 +1587,13 @@ if (importDataFile) {
               }).filter(Boolean);
 
               categories = [...new Set([...DEFAULT_CATEGORIES, ...newCategories])];
+              stores = [...new Set([...DEFAULT_STORES, ...newStores])];
 
               saveData();
               saveCategories();
+              saveStores();
               updateCategorySelects();
+              updateStoreSelects();
               render();
               alert('データの復元に成功しました！');
             }
@@ -1516,7 +1698,8 @@ function startSyncData() {
         ...data,
         purchaseDate: data.purchaseDate || data.date,
         saleDate: data.saleDate || '',
-        salesChannel: data.salesChannel || 'mercari'
+        salesChannel: data.salesChannel || 'mercari',
+        purchaseStore: data.purchaseStore || '店舗仕入れ'
       });
     });
     render();
@@ -1541,6 +1724,26 @@ function startSyncData() {
     console.error("カテゴリ取得エラー:", err);
     categories = [...DEFAULT_CATEGORIES];
     updateCategorySelects();
+    render();
+  });
+
+  // 3. 購入店のロード
+  const userStoresRef = db.collection('users').doc(currentUser.uid).collection('stores').doc('list');
+  userStoresRef.get().then(doc => {
+    if (doc.exists) {
+      const data = doc.data();
+      if (Array.isArray(data.names)) {
+        stores = [...new Set([...DEFAULT_STORES, ...data.names])];
+      }
+    } else {
+      stores = [...DEFAULT_STORES];
+    }
+    updateStoreSelects();
+    render();
+  }).catch(err => {
+    console.error("購入店取得エラー:", err);
+    stores = [...DEFAULT_STORES];
+    updateStoreSelects();
     render();
   });
 }
@@ -1574,6 +1777,8 @@ window.onload = function () {
         products = [];
         categories = [...DEFAULT_CATEGORIES];
         updateCategorySelects();
+        stores = [...DEFAULT_STORES];
+        updateStoreSelects();
         render();
       }
     });
@@ -1585,6 +1790,8 @@ window.onload = function () {
 
     loadCategories();
     updateCategorySelects();
+    loadStores();
+    updateStoreSelects();
     loadData();
     render();
   }

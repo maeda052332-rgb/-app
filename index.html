@@ -75,6 +75,25 @@
               </div>
             </div>
 
+            <!-- 購入店選択（ドロップダウン＋追加・管理ボタン） -->
+            <div class="form-group">
+              <label for="product-store">購入店 (仕入先)</label>
+              <div class="category-input-group">
+                <div class="select-wrapper category-select-wrapper">
+                  <select id="product-store">
+                    <!-- JSで動的にロード -->
+                  </select>
+                  <i class="fa-solid fa-chevron-down"></i>
+                </div>
+                <button type="button" id="add-store-btn" class="btn btn-secondary btn-icon" title="新しい購入店を追加">
+                  <i class="fa-solid fa-plus"></i> 追加
+                </button>
+                <button type="button" id="manage-stores-btn" class="btn btn-secondary btn-icon" title="購入店を管理">
+                  <i class="fa-solid fa-gear"></i> 管理
+                </button>
+              </div>
+            </div>
+
             <!-- 数値入力欄をグリッドで配置 -->
             <div class="form-grid">
               <div class="form-group">
@@ -374,6 +393,34 @@
 
       <div class="modal-actions">
         <button type="button" id="close-category-modal-btn" class="btn btn-secondary">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 購入店管理用モーダル（ダイアログ） -->
+  <div id="store-modal" class="modal-backdrop hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-gear"></i> 購入店の管理</h3>
+        <button type="button" id="close-store-modal-x" class="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p class="modal-subtitle">購入店の追加や不要な項目の削除ができます</p>
+
+      <!-- 新規追加入力欄 -->
+      <div class="modal-form">
+        <input type="text" id="new-store-input" placeholder="新しい購入店名（例: ブックオフ）">
+        <button type="button" id="modal-add-store-btn" class="btn btn-primary">
+          <i class="fa-solid fa-plus"></i> 追加
+        </button>
+      </div>
+
+      <!-- 購入店一覧リスト -->
+      <ul id="modal-store-list" class="modal-category-list">
+        <!-- JSで動的に挿入 -->
+      </ul>
+
+      <div class="modal-actions">
+        <button type="button" id="close-store-modal-btn" class="btn btn-secondary">閉じる</button>
       </div>
     </div>
   </div>
