@@ -1278,7 +1278,7 @@ body {
 
   /* サマリーカーチE*/
   .summary-section {
-    grid-template-columns: 1fr 1fr 1fr 1.2fr;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1.2fr;
     gap: 1rem;
   }
 
@@ -1318,6 +1318,10 @@ body {
 
   .status-filter-wrapper {
     width: 130px;
+  }
+
+  .month-filter-wrapper {
+    width: 140px;
   }
 
   /* PCではチE�Eブルを表示 */

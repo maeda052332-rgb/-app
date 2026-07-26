@@ -38,6 +38,7 @@ let stores = []; // 購入店リスト
 let searchQuery = '';
 let dateFilterQuery = ''; // カレンダー日付フィルター値
 let statusFilterQuery = 'all'; // 状態フィルター値 (all, inventory, sold)
+let monthFilterQuery = 'all'; // 月別フィルター値 (all, or YYYY/MM)
 let editingProductId = null; // 編集中の商品IDを保持する変数 (nullなら通常登録)
 let revenueChartInstance = null; // Chart.jsのインスタンス保持用
 
@@ -101,6 +102,7 @@ const searchInput = safeGetElement('search-input');
 const dateFilterInput = safeGetElement('date-filter');
 const clearDateBtn = safeGetElement('clear-date-btn');
 const statusFilterInput = safeGetElement('status-filter'); // 状態フィルター
+const monthFilterInput = safeGetElement('month-filter'); // 月別フィルター
 
 // タブ・ページ切り替え要素
 const tabInventory = safeGetElement('tab-inventory');
@@ -112,6 +114,7 @@ const reportPage = safeGetElement('report-page');
 const totalCountEl = safeGetElement('total-count');
 const totalInvestmentEl = safeGetElement('total-investment');
 const totalSalesEl = safeGetElement('total-sales');
+const totalRecoveryEl = safeGetElement('total-recovery'); // 回収額
 const totalProfitEl = safeGetElement('total-profit');
 
 // 一覧エリア
@@ -434,6 +437,38 @@ function updateModalStoreList() {
   });
 }
 
+// --- 月別フィルター用の選択肢更新 ---
+function updateMonthFilterSelect() {
+  if (!monthFilterInput) return;
+  const previouslySelected = monthFilterInput.value;
+  
+  const allMonths = [];
+  products.forEach(p => {
+    if (p.purchaseDate) allMonths.push(p.purchaseDate.substring(0, 7)); // YYYY/MM
+    if (p.saleDate) allMonths.push(p.saleDate.substring(0, 7)); // YYYY/MM
+  });
+  
+  const months = [...new Set(allMonths.filter(Boolean))];
+  months.sort((a, b) => b.localeCompare(a));
+  
+  monthFilterInput.innerHTML = '<option value="all">すべての月</option>';
+  months.forEach(m => {
+    const option = document.createElement('option');
+    option.value = m;
+    const displayStr = m.replace('/', '年') + '月';
+    option.textContent = displayStr;
+    monthFilterInput.appendChild(option);
+  });
+  
+  if (previouslySelected && (previouslySelected === 'all' || months.includes(previouslySelected))) {
+    monthFilterInput.value = previouslySelected;
+    monthFilterQuery = previouslySelected;
+  } else {
+    monthFilterInput.value = 'all';
+    monthFilterQuery = 'all';
+  }
+}
+
 // --- 商品データの読み書き ---
 
 function loadData() {
@@ -484,6 +519,9 @@ function saveData() {
 // --- 描画処理 (在庫管理) ---
 
 function render() {
+  // 月別フィルターの選択肢を最新データに合わせて更新
+  updateMonthFilterSelect();
+
   // 1. 検索クエリでフィルター (商品名 or カテゴリー or 購入店 or 仕入れ日/販売日の部分一致)
   let filteredProducts = products;
   if (searchQuery) {
@@ -512,11 +550,25 @@ function render() {
     filteredProducts = filteredProducts.filter(product => product.status === statusFilterQuery);
   }
 
-  // 在庫管理用の数値集計
-  const totalCount = products.length;
-  const totalInvestment = products.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-  const totalSales = products.filter(p => p.status === 'sold').reduce((sum, item) => sum + (Number(item.sellPrice) || 0), 0);
-  const totalProfit = products.filter(p => p.status === 'sold').reduce((sum, item) => {
+  // 3.5. 月別フィルター
+  if (monthFilterQuery !== 'all') {
+    filteredProducts = filteredProducts.filter(product =>
+      (product.purchaseDate && product.purchaseDate.substring(0, 7) === monthFilterQuery) ||
+      (product.saleDate && product.saleDate.substring(0, 7) === monthFilterQuery)
+    );
+  }
+
+  // 在庫管理用の数値集計 (絞り込まれた filteredProducts を対象とする)
+  const totalCount = filteredProducts.length;
+  const totalInvestment = filteredProducts.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+  const totalSales = filteredProducts.filter(p => p.status === 'sold').reduce((sum, item) => sum + (Number(item.sellPrice) || 0), 0);
+  const totalRecovery = filteredProducts.filter(p => p.status === 'sold').reduce((sum, item) => {
+    const sellPrice = Number(item.sellPrice) || 0;
+    const shipping = Number(item.shipping) || 0;
+    const fee = calculateFee(sellPrice, item.feeRate, item.fee, item.salesChannel);
+    return sum + (sellPrice - shipping - fee);
+  }, 0);
+  const totalProfit = filteredProducts.filter(p => p.status === 'sold').reduce((sum, item) => {
     const price = Number(item.price) || 0;
     const sellPrice = Number(item.sellPrice) || 0;
     const shipping = Number(item.shipping) || 0;
@@ -533,6 +585,7 @@ function render() {
   if (totalCountEl) totalCountEl.innerHTML = `${totalCount} <span class="unit">個</span>`;
   if (totalInvestmentEl) totalInvestmentEl.textContent = formatCurrency(totalInvestment);
   if (totalSalesEl) totalSalesEl.textContent = formatCurrency(totalSales);
+  if (totalRecoveryEl) totalRecoveryEl.textContent = formatCurrency(totalRecovery);
 
   if (totalProfitEl) {
     let profitClass = 'profit-zero';
@@ -1458,6 +1511,13 @@ if (clearDateBtn) {
 if (statusFilterInput) {
   statusFilterInput.onchange = function (e) {
     statusFilterQuery = e.target.value;
+    render();
+  };
+}
+
+if (monthFilterInput) {
+  monthFilterInput.onchange = function (e) {
+    monthFilterQuery = e.target.value;
     render();
   };
 }

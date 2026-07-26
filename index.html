@@ -194,6 +194,10 @@
             <span class="summary-label">合計売上額 (売了のみ)</span>
             <span class="summary-value" id="total-sales">¥0</span>
           </div>
+          <div class="summary-card">
+            <span class="summary-label">合計回収額 (売了のみ)</span>
+            <span class="summary-value" id="total-recovery">¥0</span>
+          </div>
           <div class="summary-card highlight">
             <span class="summary-label">合計利益 (売了のみ利益率)</span>
             <span class="summary-value" id="total-profit">¥0 <span class="profit-rate-summary"
@@ -224,6 +228,15 @@
                   <option value="all">すべての状態</option>
                   <option value="inventory">在庫のみ</option>
                   <option value="sold">売了のみ</option>
+                </select>
+                <i class="fa-solid fa-chevron-down"></i>
+              </div>
+
+              <!-- 月別フィルターセレクトボックス -->
+              <div class="select-wrapper month-filter-wrapper">
+                <select id="month-filter">
+                  <option value="all">すべての月</option>
+                  <!-- JSで動的に追加 -->
                 </select>
                 <i class="fa-solid fa-chevron-down"></i>
               </div>
