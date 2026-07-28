@@ -40,6 +40,9 @@
       <button class="nav-tab" id="tab-report">
         <i class="fa-solid fa-chart-line"></i> 収支レポート
       </button>
+      <button class="nav-tab" id="tab-trend">
+        <i class="fa-solid fa-chart-area"></i> 収支推移
+      </button>
     </nav>
 
     <main class="app-main">
@@ -199,7 +202,7 @@
             <span class="summary-value" id="total-recovery">¥0</span>
           </div>
           <div class="summary-card highlight">
-            <span class="summary-label">合計利益 (売了のみ利益率)</span>
+            <span class="summary-label">合計利益</span>
             <span class="summary-value" id="total-profit">¥0 <span class="profit-rate-summary"
                 id="average-profit-rate">(0%)</span></span>
           </div>
@@ -321,7 +324,7 @@
               <span class="monthly-summary-value" id="report-total-sales">¥0</span>
             </div>
             <div class="monthly-summary-card" id="report-total-profit-card">
-              <span class="monthly-summary-label">手残り利益 (売了のみ利益率)</span>
+              <span class="monthly-summary-label">手残り利益 (実質利益)</span>
               <span class="monthly-summary-value" id="report-total-profit">¥0 <span class="profit-rate-summary"
                   id="report-average-profit-rate">(0%)</span></span>
             </div>
@@ -374,6 +377,66 @@
           </div>
         </section>
       </div>
+
+      <!-- ================= 収支推移ページ ================= -->
+      <div id="trend-page" class="page-content hidden">
+        <!-- グラフセクション -->
+        <section class="card chart-section">
+          <div class="diagnostic-header">
+            <h2><i class="fa-solid fa-chart-line"></i> 収支推移グラフ</h2>
+            <div class="trend-controls" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <!-- 表示モード切替 (月別 / 日別) -->
+              <div class="select-wrapper">
+                <select id="trend-view-mode">
+                  <option value="monthly">月別推移</option>
+                  <option value="daily">日別推移</option>
+                </select>
+                <i class="fa-solid fa-chevron-down"></i>
+              </div>
+              <!-- 日別選択時の対象年月セレクト (日別表示の時だけ表示) -->
+              <div class="select-wrapper hidden" id="trend-month-select-wrapper">
+                <select id="trend-month-select">
+                  <!-- JSで動的にロード -->
+                </select>
+                <i class="fa-solid fa-chevron-down"></i>
+              </div>
+            </div>
+          </div>
+          <p class="chart-subtitle" id="trend-chart-subtitle">仕入れ・売上・利益の月ごとの推移を視覚的に確認できます</p>
+          
+          <div id="trend-chart-empty" class="empty-state hidden">
+            <i class="fa-solid fa-chart-line empty-icon"></i>
+            <p>グラフを表示するためのデータがありません。</p>
+            <p class="empty-hint">まずは在庫管理ページから商品の追加や、売れた商品の価格更新を行ってください。</p>
+          </div>
+          
+          <div id="trend-chart-container" class="chart-container">
+            <canvas id="trend-chart"></canvas>
+          </div>
+        </section>
+
+        <!-- 収支一覧テーブル -->
+        <section class="card list-section" id="trend-table-section">
+          <h2 id="trend-table-title"><i class="fa-solid fa-table"></i> 月別収支データ一覧</h2>
+          <div class="trend-table-wrapper">
+            <table class="product-table trend-table" style="display: table; width: 100%;">
+              <thead id="trend-table-header">
+                <tr>
+                  <th>年月</th>
+                  <th class="text-right">仕入れ総額</th>
+                  <th class="text-right">売上総額</th>
+                  <th class="text-right">手残り利益 (利益率)</th>
+                  <th class="text-right">資金増減</th>
+                </tr>
+              </thead>
+              <tbody id="trend-table-body">
+                <!-- JSで動的に挿入 -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
 
     </main>
 

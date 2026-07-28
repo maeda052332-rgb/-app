@@ -41,6 +41,7 @@ let statusFilterQuery = 'all'; // 状態フィルター値 (all, inventory, sold
 let monthFilterQuery = 'all'; // 月別フィルター値 (all, or YYYY/MM)
 let editingProductId = null; // 編集中の商品IDを保持する変数 (nullなら通常登録)
 let revenueChartInstance = null; // Chart.jsのインスタンス保持用
+let trendChartInstance = null; // Chart.jsのインスタンス保持用
 
 // デフォルトのカテゴリー
 const DEFAULT_CATEGORIES = ['本', 'おもちゃ', '家電', 'アパレル', 'ゲーム', 'その他'];
@@ -107,8 +108,13 @@ const monthFilterInput = safeGetElement('month-filter'); // 月別フィルタ�
 // タブ・ページ切り替え要素
 const tabInventory = safeGetElement('tab-inventory');
 const tabReport = safeGetElement('tab-report');
+const tabTrend = safeGetElement('tab-trend');
 const inventoryPage = safeGetElement('inventory-page');
 const reportPage = safeGetElement('report-page');
+const trendPage = safeGetElement('trend-page');
+const trendViewModeInput = safeGetElement('trend-view-mode');
+const trendMonthSelectInput = safeGetElement('trend-month-select');
+
 
 // サマリー要素 (在庫管理用)
 const totalCountEl = safeGetElement('total-count');
@@ -522,6 +528,15 @@ function render() {
   // 月別フィルターの選択肢を最新データに合わせて更新
   updateMonthFilterSelect();
 
+  // アクティブなページに応じた更新
+  if (reportPage && !reportPage.classList.contains('hidden')) {
+    updateReportMonthSelect();
+    renderReportPage();
+  }
+  if (trendPage && !trendPage.classList.contains('hidden')) {
+    renderTrendPage();
+  }
+
   // 1. 検索クエリでフィルター (商品名 or カテゴリー or 購入店 or 仕入れ日/販売日の部分一致)
   let filteredProducts = products;
   if (searchQuery) {
@@ -568,13 +583,7 @@ function render() {
     const fee = calculateFee(sellPrice, item.feeRate, item.fee, item.salesChannel);
     return sum + (sellPrice - shipping - fee);
   }, 0);
-  const totalProfit = filteredProducts.filter(p => p.status === 'sold').reduce((sum, item) => {
-    const price = Number(item.price) || 0;
-    const sellPrice = Number(item.sellPrice) || 0;
-    const shipping = Number(item.shipping) || 0;
-    const fee = calculateFee(sellPrice, item.feeRate, item.fee, item.salesChannel);
-    return sum + (sellPrice - price - shipping - fee);
-  }, 0);
+  const totalProfit = totalRecovery - totalInvestment;
 
   let averageProfitRate = 0;
   if (totalSales > 0) {
@@ -744,22 +753,27 @@ function render() {
       const card = document.createElement('div');
       card.className = 'mobile-product-card';
       card.innerHTML = `
-        <div class="mobile-card-row">
-          <span class="mobile-card-title">
+        <div class="mobile-card-header">
+          <div class="mobile-card-tags">
             ${badgeHtml}
-            ${escapeHtml(product.name)}
             <span class="category-tag badge-category">${escapeHtml(product.category || 'その他')}</span>
             ${product.purchaseStore ? `<span class="category-tag badge-category store-tag">🏪 ${escapeHtml(product.purchaseStore)}</span>` : ''}
-          </span>
-          <span class="mobile-card-price">
-            <span class="${itemProfitClass}">${formatCurrency(profit)}</span> <span class="profit-rate" style="display:inline;">(${profitRate}%)</span>
-          </span>
+          </div>
+          <h4 class="mobile-product-name">${escapeHtml(product.name)}</h4>
         </div>
-        <div class="mobile-card-details">
-          <div class="mobile-detail-item">仕入れ: <span>${formatCurrency(price)}</span></div>
-          <div class="mobile-detail-item">販売: <span>${formatCurrency(sellPrice)}</span></div>
-          <div class="mobile-detail-item">送料: <span>${formatCurrency(shipping)}</span></div>
-          <div class="mobile-detail-item">手数料: <span>${feeText}</span></div>
+        <div class="mobile-card-body">
+          <div class="mobile-card-details">
+            <div class="mobile-detail-item">仕入: <span>${formatCurrency(price)}</span></div>
+            <div class="mobile-detail-item">売値: <span>${formatCurrency(sellPrice)}</span></div>
+            <div class="mobile-detail-item">送料: <span>${formatCurrency(shipping)}</span></div>
+            <div class="mobile-detail-item">手数料: <span>${feeText}</span></div>
+          </div>
+          <div class="mobile-card-profit-row ${product.status === 'sold' ? 'highlight-profit' : ''}">
+            <span class="profit-label">利益 (利益率):</span>
+            <span class="profit-value ${itemProfitClass}">
+              ${formatCurrency(profit)} <span class="profit-rate-percent">(${profitRate}%)</span>
+            </span>
+          </div>
         </div>
         <div class="mobile-card-footer">
           <span class="date-text">${mobileDateText}</span>
@@ -1002,23 +1016,38 @@ function clearErrors() {
 // --- タブ切り替えとレポート表示ロジック ---
 
 function setupTabs() {
-  if (tabInventory && tabReport && inventoryPage && reportPage) {
+  if (tabInventory && tabReport && tabTrend && inventoryPage && reportPage && trendPage) {
     tabInventory.onclick = function () {
       tabInventory.classList.add('active');
       tabReport.classList.remove('active');
+      tabTrend.classList.remove('active');
       inventoryPage.classList.remove('hidden');
       reportPage.classList.add('hidden');
+      trendPage.classList.add('hidden');
       render();
     };
 
     tabReport.onclick = function () {
       tabInventory.classList.remove('active');
       tabReport.classList.add('active');
+      tabTrend.classList.remove('active');
       inventoryPage.classList.add('hidden');
       reportPage.classList.remove('hidden');
+      trendPage.classList.add('hidden');
 
       updateReportMonthSelect();
       renderReportPage();
+    };
+
+    tabTrend.onclick = function () {
+      tabInventory.classList.remove('active');
+      tabReport.classList.remove('active');
+      tabTrend.classList.add('active');
+      inventoryPage.classList.add('hidden');
+      reportPage.classList.add('hidden');
+      trendPage.classList.remove('hidden');
+
+      renderTrendPage();
     };
   }
 }
@@ -1088,8 +1117,7 @@ function renderReportPage() {
   const totalShipping = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.shipping) || 0), 0);
   const totalFee = monthlySoldProducts.reduce((sum, item) => sum + calculateFee(item.sellPrice, item.feeRate, item.fee, item.salesChannel), 0);
 
-  const totalSoldInvestment = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-  const totalProfit = totalSales - totalSoldInvestment - totalShipping - totalFee;
+  const totalProfit = totalSales - totalShipping - totalFee - totalInvestment;
 
   const profitRate = totalSales > 0 ? Math.round((totalProfit / totalSales) * 100) : 0;
 
@@ -1311,6 +1339,581 @@ function renderChart(investment, sales, profit) {
   }
 }
 
+// --- 収支推移グラフ・テーブル描画ロジック ---
+
+function getMonthlyData() {
+  const monthlyDataMap = {};
+  
+  const allMonths = [];
+  products.forEach(p => {
+    if (p.purchaseDate) allMonths.push(p.purchaseDate.substring(0, 7)); // YYYY/MM
+    if (p.saleDate) allMonths.push(p.saleDate.substring(0, 7)); // YYYY/MM
+  });
+  
+  const uniqueMonths = [...new Set(allMonths.filter(Boolean))];
+  uniqueMonths.sort((a, b) => a.localeCompare(b)); // 古い順
+  
+  uniqueMonths.forEach(month => {
+    // 1. 仕入れ総額の集計
+    const monthlyInvestedProducts = products.filter(p => p.purchaseDate && p.purchaseDate.startsWith(month));
+    const totalInvestment = monthlyInvestedProducts.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    const purchasedCount = monthlyInvestedProducts.length;
+
+    // 2. 売上・経費・利益の集計
+    const monthlySoldProducts = products.filter(p => p.status === 'sold' && p.saleDate && p.saleDate.startsWith(month));
+    const totalSales = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.sellPrice) || 0), 0);
+    const totalShipping = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.shipping) || 0), 0);
+    const totalFee = monthlySoldProducts.reduce((sum, item) => sum + calculateFee(item.sellPrice, item.feeRate, item.fee, item.salesChannel), 0);
+    const soldCount = monthlySoldProducts.length;
+
+    const totalProfit = totalSales - totalShipping - totalFee - totalInvestment;
+
+    const profitRate = totalSales > 0 ? Math.round((totalProfit / totalSales) * 100) : 0;
+    const realSales = totalSales - totalShipping - totalFee;
+    const cashFlow = realSales - totalInvestment;
+    
+    monthlyDataMap[month] = {
+      month: month,
+      investment: totalInvestment,
+      purchasedCount: purchasedCount,
+      sales: totalSales,
+      soldCount: soldCount,
+      profit: totalProfit,
+      profitRate: profitRate,
+      cashFlow: cashFlow
+    };
+  });
+  
+  return uniqueMonths.map(m => monthlyDataMap[m]);
+}
+
+function updateTrendMonthSelect() {
+  const selectEl = safeGetElement('trend-month-select');
+  if (!selectEl) return;
+  
+  const allMonths = [];
+  products.forEach(p => {
+    if (p.purchaseDate) allMonths.push(p.purchaseDate.substring(0, 7)); // YYYY/MM
+    if (p.saleDate) allMonths.push(p.saleDate.substring(0, 7)); // YYYY/MM
+  });
+  
+  const months = [...new Set(allMonths.filter(Boolean))];
+  months.sort((a, b) => b.localeCompare(a)); // 最新順
+  
+  const previouslySelected = selectEl.value;
+  selectEl.innerHTML = '';
+  
+  if (months.length === 0) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'データなし';
+    selectEl.appendChild(option);
+    return;
+  }
+  
+  months.forEach(m => {
+    const option = document.createElement('option');
+    option.value = m;
+    const parts = m.split('/');
+    option.textContent = `${parts[0]}年${parts[1]}月`;
+    selectEl.appendChild(option);
+  });
+  
+  if (months.includes(previouslySelected)) {
+    selectEl.value = previouslySelected;
+  } else {
+    selectEl.value = months[0];
+  }
+}
+
+function getDailyData(selectedMonth) {
+  if (!selectedMonth) return [];
+  
+  const parts = selectedMonth.split('/');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  
+  const numDays = new Date(year, month, 0).getDate();
+  const dailyData = [];
+  
+  for (let day = 1; day <= numDays; day++) {
+    const dayStr = String(day).padStart(2, '0');
+    const fullDateStr = `${selectedMonth}/${dayStr}`; // YYYY/MM/DD
+    
+    // 1. 仕入れ総額の集計
+    const dailyInvestedProducts = products.filter(p => p.purchaseDate === fullDateStr);
+    const totalInvestment = dailyInvestedProducts.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    const purchasedCount = dailyInvestedProducts.length;
+    
+    // 2. 売上・経費・利益の集計
+    const dailySoldProducts = products.filter(p => p.status === 'sold' && p.saleDate === fullDateStr);
+    const totalSales = dailySoldProducts.reduce((sum, item) => sum + (Number(item.sellPrice) || 0), 0);
+    const totalShipping = dailySoldProducts.reduce((sum, item) => sum + (Number(item.shipping) || 0), 0);
+    const totalFee = dailySoldProducts.reduce((sum, item) => sum + calculateFee(item.sellPrice, item.feeRate, item.fee, item.salesChannel), 0);
+    const soldCount = dailySoldProducts.length;
+    
+    const realSales = totalSales - totalShipping - totalFee;
+    const totalProfit = realSales - totalInvestment;
+    const profitRate = totalSales > 0 ? Math.round((totalProfit / totalSales) * 100) : 0;
+    const cashFlow = realSales - totalInvestment;
+    
+    dailyData.push({
+      date: fullDateStr,
+      day: day,
+      investment: totalInvestment,
+      purchasedCount: purchasedCount,
+      sales: totalSales,
+      soldCount: soldCount,
+      profit: totalProfit,
+      profitRate: profitRate,
+      cashFlow: cashFlow
+    });
+  }
+  
+  return dailyData;
+}
+
+function renderTrendPage() {
+  const viewModeEl = safeGetElement('trend-view-mode');
+  const monthSelectWrapper = safeGetElement('trend-month-select-wrapper');
+  const monthSelectEl = safeGetElement('trend-month-select');
+  const subtitleEl = safeGetElement('trend-chart-subtitle');
+  
+  const emptyEl = safeGetElement('trend-chart-empty');
+  const containerEl = safeGetElement('trend-chart-container');
+  const tableSectionEl = safeGetElement('trend-table-section');
+  const tableTitleEl = safeGetElement('trend-table-title');
+  const tableHeaderEl = safeGetElement('trend-table-header');
+  const tableBodyEl = safeGetElement('trend-table-body');
+  
+  const viewMode = viewModeEl ? viewModeEl.value : 'monthly';
+  
+  if (viewMode === 'daily') {
+    if (monthSelectWrapper) monthSelectWrapper.classList.remove('hidden');
+    if (subtitleEl) subtitleEl.textContent = '選択した月の日ごとの推移を視覚的に確認できます';
+    if (tableTitleEl) tableTitleEl.innerHTML = '<i class="fa-solid fa-table"></i> 日別収支データ一覧';
+    
+    // 年月選択肢の初期化（未選択なら最新年月へ）
+    updateTrendMonthSelect();
+    const selectedMonth = monthSelectEl ? monthSelectEl.value : '';
+    
+    const dailyData = getDailyData(selectedMonth);
+    const hasData = dailyData.some(d => d.investment > 0 || d.sales > 0);
+    
+    if (!hasData) {
+      if (emptyEl) emptyEl.classList.remove('hidden');
+      if (containerEl) containerEl.classList.add('hidden');
+      if (tableSectionEl) tableSectionEl.classList.add('hidden');
+      if (trendChartInstance) {
+        try { trendChartInstance.destroy(); } catch (e) {}
+        trendChartInstance = null;
+      }
+      return;
+    }
+    
+    if (emptyEl) emptyEl.classList.add('hidden');
+    if (containerEl) containerEl.classList.remove('hidden');
+    if (tableSectionEl) tableSectionEl.classList.remove('hidden');
+    
+    // 日別グラフの描画
+    renderDailyChart(dailyData, selectedMonth);
+    
+    // テーブルヘッダー
+    if (tableHeaderEl) {
+      tableHeaderEl.innerHTML = `
+        <tr>
+          <th>日付</th>
+          <th class="text-right">仕入れ額 (個数)</th>
+          <th class="text-right">売上額 (個数)</th>
+          <th class="text-right">利益 (利益率)</th>
+          <th class="text-right">資金増減</th>
+        </tr>
+      `;
+    }
+    
+    // テーブルボディ (すべての日にちを表示)
+    if (tableBodyEl) {
+      tableBodyEl.innerHTML = '';
+      const tableData = [...dailyData].reverse();
+      tableData.forEach(d => {
+        let profitClass = 'profit-zero';
+        if (d.profit > 0) {
+          profitClass = 'profit-positive';
+        } else if (d.profit < 0) {
+          profitClass = 'profit-negative';
+        }
+        
+        let cashFlowClass = 'profit-zero';
+        if (d.cashFlow > 0) {
+          cashFlowClass = 'profit-positive';
+        } else if (d.cashFlow < 0) {
+          cashFlowClass = 'profit-negative';
+        }
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${d.date}</strong></td>
+          <td class="text-right price-text">${formatCurrency(d.investment)} <span class="unit">(${d.purchasedCount}個)</span></td>
+          <td class="text-right price-text">${formatCurrency(d.sales)} <span class="unit">(${d.soldCount}個)</span></td>
+          <td class="text-right">
+            <span class="${profitClass}">${formatCurrency(d.profit)}</span>
+            <span class="profit-rate" style="display:inline;">(${d.profitRate}%)</span>
+          </td>
+          <td class="text-right"><span class="${cashFlowClass}">${d.cashFlow >= 0 ? '+' : ''}${formatCurrency(d.cashFlow)}</span></td>
+        `;
+        tableBodyEl.appendChild(tr);
+      });
+    }
+    
+  } else {
+    // 月別モード
+    if (monthSelectWrapper) monthSelectWrapper.classList.add('hidden');
+    if (subtitleEl) subtitleEl.textContent = '仕入れ・売上・利益の月ごとの推移を視覚的に確認できます';
+    if (tableTitleEl) tableTitleEl.innerHTML = '<i class="fa-solid fa-table"></i> 月別収支データ一覧';
+    
+    const trendData = getMonthlyData();
+    
+    if (trendData.length === 0) {
+      if (emptyEl) emptyEl.classList.remove('hidden');
+      if (containerEl) containerEl.classList.add('hidden');
+      if (tableSectionEl) tableSectionEl.classList.add('hidden');
+      if (trendChartInstance) {
+        try { trendChartInstance.destroy(); } catch (e) {}
+        trendChartInstance = null;
+      }
+      return;
+    }
+    
+    if (emptyEl) emptyEl.classList.add('hidden');
+    if (containerEl) containerEl.classList.remove('hidden');
+    if (tableSectionEl) tableSectionEl.classList.remove('hidden');
+    
+    // 月別グラフの描画
+    renderTrendChart(trendData);
+    
+    // テーブルヘッダー
+    if (tableHeaderEl) {
+      tableHeaderEl.innerHTML = `
+        <tr>
+          <th>年月</th>
+          <th class="text-right">仕入れ総額 (個数)</th>
+          <th class="text-right">売上総額 (個数)</th>
+          <th class="text-right">手残り利益 (利益率)</th>
+          <th class="text-right">資金増減</th>
+        </tr>
+      `;
+    }
+    
+    // テーブルボディ
+    if (tableBodyEl) {
+      tableBodyEl.innerHTML = '';
+      const tableData = [...trendData].reverse();
+      tableData.forEach(d => {
+        const parts = d.month.split('/');
+        const monthStr = `${parts[0]}年${parts[1]}月`;
+        
+        let profitClass = 'profit-zero';
+        if (d.profit > 0) {
+          profitClass = 'profit-positive';
+        } else if (d.profit < 0) {
+          profitClass = 'profit-negative';
+        }
+        
+        let cashFlowClass = 'profit-zero';
+        if (d.cashFlow > 0) {
+          cashFlowClass = 'profit-positive';
+        } else if (d.cashFlow < 0) {
+          cashFlowClass = 'profit-negative';
+        }
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${monthStr}</strong></td>
+          <td class="text-right price-text">${formatCurrency(d.investment)} <span class="unit">(${d.purchasedCount}個)</span></td>
+          <td class="text-right price-text">${formatCurrency(d.sales)} <span class="unit">(${d.soldCount}個)</span></td>
+          <td class="text-right">
+            <span class="${profitClass}">${formatCurrency(d.profit)}</span>
+            <span class="profit-rate" style="display:inline;">(${d.profitRate}%)</span>
+          </td>
+          <td class="text-right"><span class="${cashFlowClass}">${d.cashFlow >= 0 ? '+' : ''}${formatCurrency(d.cashFlow)}</span></td>
+        `;
+        tableBodyEl.appendChild(tr);
+      });
+    }
+  }
+}
+
+
+function renderTrendChart(trendData) {
+  const canvas = document.getElementById('trend-chart');
+  if (!canvas) return;
+
+  if (typeof Chart !== 'undefined') {
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) {
+      try {
+        existingChart.destroy();
+      } catch (e) { }
+    }
+  }
+
+  const ctx = canvas.getContext('2d');
+  if (trendChartInstance) {
+    try { trendChartInstance.destroy(); } catch (e) {}
+    trendChartInstance = null;
+  }
+
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js が読み込まれていません。');
+    return;
+  }
+
+  const labels = trendData.map(d => {
+    const parts = d.month.split('/');
+    return `${parts[0].substring(2)}/${parts[1]}`; // 例: "26/07"
+  });
+  
+  const investments = trendData.map(d => d.investment);
+  const sales = trendData.map(d => d.sales);
+  const profits = trendData.map(d => d.profit);
+
+  try {
+    trendChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: '仕入れ総額',
+            data: investments,
+            borderColor: '#0284c7',
+            backgroundColor: 'rgba(2, 132, 199, 0.05)',
+            borderWidth: 2.5,
+            tension: 0.3,
+            pointBackgroundColor: '#0284c7',
+            pointRadius: 4,
+            fill: true
+          },
+          {
+            label: '売上総額',
+            data: sales,
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99, 102, 241, 0.02)',
+            borderWidth: 2.5,
+            tension: 0.3,
+            pointBackgroundColor: '#6366f1',
+            pointRadius: 4,
+            fill: false
+          },
+          {
+            label: '手残り利益',
+            data: profits,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.05)',
+            borderWidth: 3,
+            tension: 0.3,
+            pointBackgroundColor: '#10b981',
+            pointRadius: 5,
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              font: {
+                family: 'Noto Sans JP',
+                size: 11
+              }
+            }
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              label: function (context) {
+                return ' ' + context.dataset.label + ': ' + context.raw.toLocaleString('ja-JP') + ' 円';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: '#e2e8f0'
+            },
+            ticks: {
+              font: {
+                family: 'Noto Sans JP',
+                size: 10
+              },
+              callback: function (value) {
+                return '¥' + value.toLocaleString('ja-JP');
+              }
+            }
+          },
+          x: {
+            grid: {
+              color: 'rgba(226, 232, 240, 0.5)'
+            },
+            ticks: {
+              font: {
+                family: 'Noto Sans JP',
+                size: 10,
+                weight: 'bold'
+              }
+            }
+          }
+        }
+      }
+    });
+  } catch (e) {
+    console.error('トレンドグラフの生成中にエラーが発生しました:', e);
+  }
+}
+
+function renderDailyChart(dailyData, selectedMonth) {
+  const canvas = document.getElementById('trend-chart');
+  if (!canvas) return;
+
+  if (typeof Chart !== 'undefined') {
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) {
+      try {
+        existingChart.destroy();
+      } catch (e) { }
+    }
+  }
+
+  const ctx = canvas.getContext('2d');
+  if (trendChartInstance) {
+    try { trendChartInstance.destroy(); } catch (e) {}
+    trendChartInstance = null;
+  }
+
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js が読み込まれていません。');
+    return;
+  }
+
+  const labels = dailyData.map(d => `${d.day}日`);
+  const investments = dailyData.map(d => d.investment);
+  const sales = dailyData.map(d => d.sales);
+  const profits = dailyData.map(d => d.profit);
+
+  try {
+    trendChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: '仕入れ額',
+            data: investments,
+            borderColor: '#0284c7',
+            backgroundColor: 'rgba(2, 132, 199, 0.05)',
+            borderWidth: 2,
+            tension: 0.2,
+            pointBackgroundColor: '#0284c7',
+            pointRadius: 2,
+            fill: true
+          },
+          {
+            label: '売上額',
+            data: sales,
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99, 102, 241, 0.02)',
+            borderWidth: 2,
+            tension: 0.2,
+            pointBackgroundColor: '#6366f1',
+            pointRadius: 2,
+            fill: false
+          },
+          {
+            label: '手残り利益',
+            data: profits,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.05)',
+            borderWidth: 2.5,
+            tension: 0.2,
+            pointBackgroundColor: '#10b981',
+            pointRadius: 3,
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              font: {
+                family: 'Noto Sans JP',
+                size: 11
+              }
+            }
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              title: function (context) {
+                return `${selectedMonth}/${String(context[0].dataIndex + 1).padStart(2, '0')}`;
+              },
+              label: function (context) {
+                return ' ' + context.dataset.label + ': ' + context.raw.toLocaleString('ja-JP') + ' 円';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: '#e2e8f0'
+            },
+            ticks: {
+              font: {
+                family: 'Noto Sans JP',
+                size: 10
+              },
+              callback: function (value) {
+                return '¥' + value.toLocaleString('ja-JP');
+              }
+            }
+          },
+          x: {
+            grid: {
+              color: 'rgba(226, 232, 240, 0.3)'
+            },
+            ticks: {
+              font: {
+                family: 'Noto Sans JP',
+                size: 9
+              },
+              maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 15
+            }
+          }
+        }
+      }
+    });
+  } catch (e) {
+    console.error('日別グラフの生成中にエラーが発生しました:', e);
+  }
+}
+
+
 
 if (productForm) {
   productForm.onsubmit = function (e) {
@@ -1528,6 +2131,19 @@ if (reportMonthSelect) {
     renderReportPage();
   };
 }
+
+if (trendViewModeInput) {
+  trendViewModeInput.onchange = function () {
+    renderTrendPage();
+  };
+}
+
+if (trendMonthSelectInput) {
+  trendMonthSelectInput.onchange = function () {
+    renderTrendPage();
+  };
+}
+
 
 const inputs = [productNameInput, purchasePriceInput, sellPriceInput, shippingInput, feeRateInput].filter(Boolean);
 inputs.forEach(input => {

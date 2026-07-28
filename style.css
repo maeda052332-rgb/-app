@@ -1875,3 +1875,101 @@ body.auth-mode {
   color: #ea580c !important; /* マイルドな警告オレンジ */
   font-weight: 700 !important;
 }
+
+/* ==========================================
+   14. スマホ表示最適化と収支推移のスタイル
+   ========================================== */
+
+.mobile-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mobile-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.mobile-card-tags .badge {
+  margin: 0;
+}
+
+.mobile-card-tags .category-tag {
+  margin: 0;
+}
+
+.mobile-product-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.45;
+  word-break: break-all;
+  margin: 0.15rem 0;
+}
+
+.mobile-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mobile-card-profit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background-color: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+.mobile-card-profit-row.highlight-profit {
+  background: linear-gradient(135deg, var(--accent-light), #d1fae5);
+  border-color: #a7f3d0;
+}
+
+.mobile-card-profit-row.highlight-profit .profit-label {
+  color: #065f46;
+  font-weight: 600;
+}
+
+.profit-label {
+  color: var(--text-sub);
+  font-weight: 500;
+}
+
+.profit-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.profit-rate-percent {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-sub);
+  margin-left: 0.15rem;
+}
+
+.mobile-card-profit-row.highlight-profit .profit-rate-percent {
+  color: #047857;
+}
+
+/* 収支推移テーブル用スタイル */
+.trend-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.trend-table {
+  min-width: 500px;
+}
+
+.trend-table th, .trend-table td {
+  padding: 0.8rem 0.6rem;
+  font-size: 0.85rem;
+}
