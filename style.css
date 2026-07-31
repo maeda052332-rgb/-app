@@ -1973,3 +1973,123 @@ body.auth-mode {
   padding: 0.8rem 0.6rem;
   font-size: 0.85rem;
 }
+
+/* ==========================================
+   月別集計ページ用スタイル
+   ========================================== */
+.monthly-summary-table tbody tr {
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.monthly-summary-table tbody tr:hover {
+  background-color: var(--primary-light);
+}
+
+.monthly-summary-table tbody tr.selected-row {
+  background-color: var(--primary-light);
+  border-left: 4px solid var(--primary-color);
+}
+
+/* モバイル用月別集計リスト */
+.monthly-summary-mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 769px) {
+  .monthly-summary-mobile-list {
+    display: none;
+  }
+  .monthly-summary-table {
+    display: table !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .monthly-summary-table {
+    display: none !important;
+  }
+  .monthly-summary-mobile-list {
+    display: flex;
+  }
+}
+
+.monthly-mobile-card {
+  background-color: var(--card-bg);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 14px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.monthly-mobile-card:hover, .monthly-mobile-card.selected-card {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-md);
+  background-color: #f0f9ff;
+}
+
+.monthly-mobile-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.4rem;
+}
+
+.monthly-mobile-card-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-main);
+}
+
+.monthly-mobile-card-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.monthly-mobile-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.monthly-mobile-detail-item .label {
+  color: var(--text-sub);
+  font-size: 0.7rem;
+}
+
+.monthly-mobile-detail-item .value {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* 売れた商品リストセクション */
+#sold-list-section {
+  margin-top: 1.5rem;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sold-product-table {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .sold-product-table {
+    display: none !important;
+  }
+}

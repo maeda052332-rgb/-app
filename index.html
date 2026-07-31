@@ -43,6 +43,9 @@
       <button class="nav-tab" id="tab-trend">
         <i class="fa-solid fa-chart-area"></i> 収支推移
       </button>
+      <button class="nav-tab" id="tab-monthly-summary">
+        <i class="fa-solid fa-calendar-check"></i> 月別集計
+      </button>
     </nav>
 
     <main class="app-main">
@@ -376,6 +379,78 @@
             <canvas id="revenue-chart"></canvas>
           </div>
         </section>
+
+        <!-- 区切り線 -->
+        <div style="border-top: 2px dashed var(--border-color); margin: 2.5rem 0 1.5rem 0;"></div>
+
+        <!-- 年間収支数値サマリー -->
+        <section class="card monthly-summary-section">
+          <div class="diagnostic-header">
+            <h2><i class="fa-solid fa-calendar-days"></i> <span id="report-year-display">2026</span>年の年間収支結果</h2>
+          </div>
+
+          <div class="monthly-summary-grid">
+            <div class="monthly-summary-card">
+              <span class="monthly-summary-label">年間仕入れ総額</span>
+              <span class="monthly-summary-value" id="report-yearly-investment">¥0</span>
+            </div>
+            <div class="monthly-summary-card">
+              <span class="monthly-summary-label">年間売上総額</span>
+              <span class="monthly-summary-value" id="report-yearly-sales">¥0</span>
+            </div>
+            <div class="monthly-summary-card" id="report-yearly-profit-card">
+              <span class="monthly-summary-label">年間手残り利益 (実質利益)</span>
+              <span class="monthly-summary-value" id="report-yearly-profit">¥0 <span class="profit-rate-summary"
+                  id="report-yearly-average-profit-rate">(0%)</span></span>
+            </div>
+            <div class="monthly-summary-card" id="report-yearly-cashflow-card">
+              <span class="monthly-summary-label">年間資金増減</span>
+              <span class="monthly-summary-value" id="report-yearly-cashflow">¥0</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 年間の運用状況診断 -->
+        <section class="card diagnostic-section">
+          <h2><i class="fa-solid fa-heart-pulse"></i> 年間の運用状況診断</h2>
+
+          <!-- 診断結果カード -->
+          <div id="yearly-diagnostic-card" class="diagnostic-card state-empty">
+            <div class="diagnostic-icon-area">
+              <i id="yearly-diagnostic-icon" class="fa-solid fa-circle-info"></i>
+            </div>
+            <div class="diagnostic-content-area">
+              <h3 id="yearly-diagnostic-title">データがありません</h3>
+              <p id="yearly-diagnostic-desc">選択された年の販売データが登録されていません。</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 年間の資金繰り（キャッシュフロー）診断 -->
+        <section class="card cashflow-section">
+          <h2><i class="fa-solid fa-hand-holding-dollar"></i> 年間の資金繰り（キャッシュフロー）診断</h2>
+          <p class="chart-subtitle" style="margin-top: -1rem; margin-bottom: 1rem;">黒字倒産を防ぐため、今年の総仕入れ額と手元回収額を比較します</p>
+
+          <!-- 資金繰り診断結果カード -->
+          <div id="yearly-cashflow-card" class="diagnostic-card state-empty">
+            <div class="diagnostic-icon-area">
+              <i id="yearly-cashflow-icon" class="fa-solid fa-circle-info"></i>
+            </div>
+            <div class="diagnostic-content-area">
+              <h3 id="yearly-cashflow-title">データがありません</h3>
+              <p id="yearly-cashflow-desc">当年中に仕入れた商品、または販売完了した商品のデータがありません。</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 年間グラフセクション -->
+        <section class="card chart-section">
+          <h2><i class="fa-solid fa-chart-bar"></i> 年間の収支バランスグラフ</h2>
+          <p class="chart-subtitle">年間の仕入れ・売上・利益の規模を視覚的に比較できます</p>
+          <div class="chart-container">
+            <canvas id="yearly-revenue-chart"></canvas>
+          </div>
+        </section>
       </div>
 
       <!-- ================= 収支推移ページ ================= -->
@@ -437,6 +512,78 @@
         </section>
       </div>
 
+      <!-- ================= 月別集計ページ ================= -->
+      <div id="monthly-summary-page" class="page-content hidden">
+        <!-- 月別集計テーブル -->
+        <section class="card list-section">
+          <div class="section-header-flex" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem;">
+            <h2 style="margin-bottom: 0;"><i class="fa-solid fa-table"></i> 月別収支・在庫状況一覧</h2>
+            <button class="btn btn-secondary btn-small" id="download-monthly-summary-btn" type="button" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.8rem; border-radius: 8px;">
+              <i class="fa-solid fa-file-csv"></i> CSVダウンロード
+            </button>
+          </div>
+          <p class="chart-subtitle" style="margin-top: -1.75rem; margin-bottom: 1.25rem;">各行をクリックすると、その月に売れた商品のリストを表示します</p>
+          <div class="trend-table-wrapper">
+            <table class="product-table monthly-summary-table" style="display: table; width: 100%;">
+              <thead>
+                <tr>
+                  <th>年月</th>
+                  <th class="text-right">売上総額</th>
+                  <th class="text-right">総回収額</th>
+                  <th class="text-right">手残り利益 (利益率)</th>
+                  <th class="text-right">仕入れ総額</th>
+                  <th class="text-right">在庫残り仕入れ額</th>
+                </tr>
+              </thead>
+              <tbody id="monthly-summary-table-body">
+                <!-- JSで動的に挿入 -->
+              </tbody>
+            </table>
+            
+            <!-- モバイル用月別集計リスト -->
+            <div id="monthly-summary-mobile-list" class="monthly-summary-mobile-list">
+              <!-- JSで動的に挿入 -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 選択した月の売れた商品リスト -->
+        <section class="card list-section hidden" id="sold-list-section">
+          <div class="section-header-flex" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem;">
+            <h2 style="margin-bottom: 0;"><i class="fa-solid fa-cart-flatbed-suitcase"></i> <span id="sold-list-title">2026年07月</span> の売れた商品リスト</h2>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn btn-secondary btn-small" id="download-sold-list-btn" type="button" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.8rem; border-radius: 8px;">
+                <i class="fa-solid fa-file-csv"></i> CSVダウンロード
+              </button>
+              <button class="btn btn-secondary btn-small" id="close-sold-list-btn" type="button" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.8rem; border-radius: 8px;">閉じる</button>
+            </div>
+          </div>
+          <div id="sold-list-wrapper">
+            <!-- PC用テーブル -->
+            <table class="product-table sold-product-table" style="display: table; width: 100%;">
+              <thead>
+                <tr>
+                  <th>商品名</th>
+                  <th class="text-right">仕入れ価格</th>
+                  <th class="text-right">販売価格</th>
+                  <th class="text-right">送料</th>
+                  <th class="text-right">手数料</th>
+                  <th class="text-right">利益 (利益率)</th>
+                  <th class="text-center">仕入れ日/販売日</th>
+                </tr>
+              </thead>
+              <tbody id="sold-table-body">
+                <!-- JSで動的に挿入 -->
+              </tbody>
+            </table>
+
+            <!-- スマホ用リスト -->
+            <div id="sold-mobile-list" class="product-mobile-list">
+              <!-- JSで動的に挿入 -->
+            </div>
+          </div>
+        </section>
+      </div>
 
     </main>
 

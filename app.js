@@ -41,6 +41,7 @@ let statusFilterQuery = 'all'; // 状態フィルター値 (all, inventory, sold
 let monthFilterQuery = 'all'; // 月別フィルター値 (all, or YYYY/MM)
 let editingProductId = null; // 編集中の商品IDを保持する変数 (nullなら通常登録)
 let revenueChartInstance = null; // Chart.jsのインスタンス保持用
+let yearlyRevenueChartInstance = null; // Chart.jsの年間インスタンス保持用
 let trendChartInstance = null; // Chart.jsのインスタンス保持用
 
 // デフォルトのカテゴリー
@@ -115,6 +116,21 @@ const trendPage = safeGetElement('trend-page');
 const trendViewModeInput = safeGetElement('trend-view-mode');
 const trendMonthSelectInput = safeGetElement('trend-month-select');
 
+// 月別集計ページの要素
+const tabMonthlySummary = safeGetElement('tab-monthly-summary');
+const monthlySummaryPage = safeGetElement('monthly-summary-page');
+const monthlySummaryTableBody = safeGetElement('monthly-summary-table-body');
+const monthlySummaryMobileList = safeGetElement('monthly-summary-mobile-list');
+const soldListSection = safeGetElement('sold-list-section');
+const soldListTitle = safeGetElement('sold-list-title');
+const soldTableBody = safeGetElement('sold-table-body');
+const soldMobileList = safeGetElement('sold-mobile-list');
+const closeSoldListBtn = safeGetElement('close-sold-list-btn');
+const downloadMonthlySummaryBtn = safeGetElement('download-monthly-summary-btn');
+const downloadSoldListBtn = safeGetElement('download-sold-list-btn');
+
+let selectedMonthlySummaryMonth = null; // 現在選択されている「売れた商品リスト」の月
+
 
 // サマリー要素 (在庫管理用)
 const totalCountEl = safeGetElement('total-count');
@@ -136,6 +152,15 @@ const reportTotalSalesEl = safeGetElement('report-total-sales'); // 文字売上
 const reportTotalProfitEl = safeGetElement('report-total-profit'); // 文字利益
 const reportTotalProfitCard = safeGetElement('report-total-profit-card'); // 文字利益カード
 
+// 年間レポート用要素
+const reportYearDisplay = safeGetElement('report-year-display');
+const reportYearlyInvestmentEl = safeGetElement('report-yearly-investment');
+const reportYearlySalesEl = safeGetElement('report-yearly-sales');
+const reportYearlyProfitEl = safeGetElement('report-yearly-profit');
+const reportYearlyProfitCard = safeGetElement('report-yearly-profit-card');
+const reportYearlyCashFlowEl = safeGetElement('report-yearly-cashflow');
+const reportYearlyCashFlowCard = safeGetElement('report-yearly-cashflow-card');
+
 const diagnosticCard = safeGetElement('diagnostic-card');
 const diagnosticIcon = safeGetElement('diagnostic-icon');
 const diagnosticTitle = safeGetElement('diagnostic-title');
@@ -150,6 +175,17 @@ const cashflowDesc = safeGetElement('cashflow-desc');
 // --- 収支サマリー用資金増減要素 ---
 const reportTotalCashFlowEl = safeGetElement('report-total-cashflow');
 const reportTotalCashFlowCard = safeGetElement('report-total-cashflow-card');
+
+// 年間診断用要素
+const yearlyDiagnosticCard = safeGetElement('yearly-diagnostic-card');
+const yearlyDiagnosticIcon = safeGetElement('yearly-diagnostic-icon');
+const yearlyDiagnosticTitle = safeGetElement('yearly-diagnostic-title');
+const yearlyDiagnosticDesc = safeGetElement('yearly-diagnostic-desc');
+
+const yearlyCashflowCard = safeGetElement('yearly-cashflow-card');
+const yearlyCashflowIcon = safeGetElement('yearly-cashflow-icon');
+const yearlyCashflowTitle = safeGetElement('yearly-cashflow-title');
+const yearlyCashflowDesc = safeGetElement('yearly-cashflow-desc');
 
 // --- データインポート・エクスポート要素 ---
 const exportDataBtn = safeGetElement('export-data-btn');
@@ -535,6 +571,9 @@ function render() {
   }
   if (trendPage && !trendPage.classList.contains('hidden')) {
     renderTrendPage();
+  }
+  if (monthlySummaryPage && !monthlySummaryPage.classList.contains('hidden')) {
+    renderMonthlySummaryPage();
   }
 
   // 1. 検索クエリでフィルター (商品名 or カテゴリー or 購入店 or 仕入れ日/販売日の部分一致)
@@ -1016,14 +1055,17 @@ function clearErrors() {
 // --- タブ切り替えとレポート表示ロジック ---
 
 function setupTabs() {
-  if (tabInventory && tabReport && tabTrend && inventoryPage && reportPage && trendPage) {
+  if (tabInventory && tabReport && tabTrend && tabMonthlySummary &&
+      inventoryPage && reportPage && trendPage && monthlySummaryPage) {
     tabInventory.onclick = function () {
       tabInventory.classList.add('active');
       tabReport.classList.remove('active');
       tabTrend.classList.remove('active');
+      tabMonthlySummary.classList.remove('active');
       inventoryPage.classList.remove('hidden');
       reportPage.classList.add('hidden');
       trendPage.classList.add('hidden');
+      monthlySummaryPage.classList.add('hidden');
       render();
     };
 
@@ -1031,9 +1073,11 @@ function setupTabs() {
       tabInventory.classList.remove('active');
       tabReport.classList.add('active');
       tabTrend.classList.remove('active');
+      tabMonthlySummary.classList.remove('active');
       inventoryPage.classList.add('hidden');
       reportPage.classList.remove('hidden');
       trendPage.classList.add('hidden');
+      monthlySummaryPage.classList.add('hidden');
 
       updateReportMonthSelect();
       renderReportPage();
@@ -1043,11 +1087,26 @@ function setupTabs() {
       tabInventory.classList.remove('active');
       tabReport.classList.remove('active');
       tabTrend.classList.add('active');
+      tabMonthlySummary.classList.remove('active');
       inventoryPage.classList.add('hidden');
       reportPage.classList.add('hidden');
       trendPage.classList.remove('hidden');
+      monthlySummaryPage.classList.add('hidden');
 
       renderTrendPage();
+    };
+
+    tabMonthlySummary.onclick = function () {
+      tabInventory.classList.remove('active');
+      tabReport.classList.remove('active');
+      tabTrend.classList.remove('active');
+      tabMonthlySummary.classList.add('active');
+      inventoryPage.classList.add('hidden');
+      reportPage.classList.add('hidden');
+      trendPage.classList.add('hidden');
+      monthlySummaryPage.classList.remove('hidden');
+
+      renderMonthlySummaryPage();
     };
   }
 }
@@ -1097,15 +1156,23 @@ function renderReportPage() {
     setDiagnosticState('empty');
     setCashFlowState('empty');
     updateReportSummaryText(0, 0, 0, 0, 0);
+    updateYearlyReportSummaryText('', 0, 0, 0, 0, 0);
     if (revenueChartInstance) {
       try {
         revenueChartInstance.destroy();
       } catch (e) { }
       revenueChartInstance = null;
     }
+    if (yearlyRevenueChartInstance) {
+      try {
+        yearlyRevenueChartInstance.destroy();
+      } catch (e) { }
+      yearlyRevenueChartInstance = null;
+    }
     return;
   }
 
+  // --- 月次集計 ---
   // 1. 仕入れ総額の集計
   const monthlyInvestedProducts = products.filter(p => p.purchaseDate && p.purchaseDate.startsWith(selectedMonth));
   const totalInvestment = monthlyInvestedProducts.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
@@ -1128,6 +1195,27 @@ function renderReportPage() {
 
   updateReportSummaryText(totalInvestment, totalSales, totalProfit, profitRate, cashFlowDiff);
 
+  // --- 年間集計 ---
+  const selectedYear = selectedMonth.substring(0, 4); // YYYY
+  // 1. 年間仕入れ総額
+  const yearlyInvestedProducts = products.filter(p => p.purchaseDate && p.purchaseDate.startsWith(selectedYear));
+  const yearlyInvestment = yearlyInvestedProducts.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+
+  // 2. 年間売上・経費・利益の集計
+  const yearlySoldProducts = products.filter(p => p.status === 'sold' && p.saleDate && p.saleDate.startsWith(selectedYear));
+  const yearlySales = yearlySoldProducts.reduce((sum, item) => sum + (Number(item.sellPrice) || 0), 0);
+  const yearlyShipping = yearlySoldProducts.reduce((sum, item) => sum + (Number(item.shipping) || 0), 0);
+  const yearlyFee = yearlySoldProducts.reduce((sum, item) => sum + calculateFee(item.sellPrice, item.feeRate, item.fee, item.salesChannel), 0);
+
+  const yearlyProfit = yearlySales - yearlyShipping - yearlyFee - yearlyInvestment;
+  const yearlyProfitRate = yearlySales > 0 ? Math.round((yearlyProfit / yearlySales) * 100) : 0;
+
+  // 3. 年間実質売上額・年間資金増減
+  const yearlyRealSales = yearlySales - yearlyShipping - yearlyFee;
+  const yearlyCashFlow = yearlyRealSales - yearlyInvestment;
+
+  updateYearlyReportSummaryText(selectedYear, yearlyInvestment, yearlySales, yearlyProfit, yearlyProfitRate, yearlyCashFlow);
+
   // 運用状況診断の判定
   if (monthlyInvestedProducts.length === 0 && monthlySoldProducts.length === 0) {
     setDiagnosticState('empty');
@@ -1139,6 +1227,17 @@ function renderReportPage() {
     setDiagnosticState('good', totalProfit, profitRate);
   }
 
+  // 年間運用状況診断の判定
+  if (yearlyInvestedProducts.length === 0 && yearlySoldProducts.length === 0) {
+    setYearlyDiagnosticState('empty');
+  } else if (yearlyProfit < 0) {
+    setYearlyDiagnosticState('warning', yearlyProfit, yearlyProfitRate);
+  } else if (yearlyProfitRate >= 25) {
+    setYearlyDiagnosticState('excellent', yearlyProfit, yearlyProfitRate);
+  } else {
+    setYearlyDiagnosticState('good', yearlyProfit, yearlyProfitRate);
+  }
+
   // 資金繰り（キャッシュフロー）診断の判定
   if (monthlyInvestedProducts.length === 0 && monthlySoldProducts.length === 0) {
     setCashFlowState('empty');
@@ -1148,7 +1247,17 @@ function renderReportPage() {
     setCashFlowState('warning', realSales, totalInvestment, cashFlowDiff);
   }
 
+  // 年間資金繰り（キャッシュフロー）診断の判定
+  if (yearlyInvestedProducts.length === 0 && yearlySoldProducts.length === 0) {
+    setYearlyCashFlowState('empty');
+  } else if (yearlyCashFlow >= 0) {
+    setYearlyCashFlowState('safe', yearlyRealSales, yearlyInvestment, yearlyCashFlow);
+  } else {
+    setYearlyCashFlowState('warning', yearlyRealSales, yearlyInvestment, yearlyCashFlow);
+  }
+
   renderChart(totalInvestment, totalSales, totalProfit);
+  renderYearlyChart(yearlyInvestment, yearlySales, yearlyProfit);
 }
 
 function updateReportSummaryText(investment, sales, profit, rate, cashFlow) {
@@ -1178,6 +1287,37 @@ function updateReportSummaryText(investment, sales, profit, rate, cashFlow) {
       reportTotalCashFlowCard.classList.add('profit-positive');
     } else if (cashFlow < 0) {
       reportTotalCashFlowCard.classList.add('profit-negative');
+    }
+  }
+}
+
+function updateYearlyReportSummaryText(year, investment, sales, profit, rate, cashFlow) {
+  if (reportYearDisplay) reportYearDisplay.textContent = year || '----';
+  if (reportYearlyInvestmentEl) reportYearlyInvestmentEl.textContent = formatCurrency(investment);
+  if (reportYearlySalesEl) reportYearlySalesEl.textContent = formatCurrency(sales);
+
+  if (reportYearlyProfitCard) {
+    reportYearlyProfitCard.className = 'monthly-summary-card';
+    if (profit > 0) {
+      reportYearlyProfitCard.classList.add('profit-positive');
+    } else if (profit < 0) {
+      reportYearlyProfitCard.classList.add('profit-negative');
+    }
+  }
+
+  if (reportYearlyProfitEl) {
+    reportYearlyProfitEl.innerHTML = `${formatCurrency(profit)} <span class="profit-rate-summary" id="report-yearly-average-profit-rate">(${rate}%)</span>`;
+  }
+
+  if (reportYearlyCashFlowEl) {
+    reportYearlyCashFlowEl.textContent = (cashFlow >= 0 ? '+' : '') + formatCurrency(cashFlow);
+  }
+  if (reportYearlyCashFlowCard) {
+    reportYearlyCashFlowCard.className = 'monthly-summary-card';
+    if (cashFlow > 0) {
+      reportYearlyCashFlowCard.classList.add('profit-positive');
+    } else if (cashFlow < 0) {
+      reportYearlyCashFlowCard.classList.add('profit-negative');
     }
   }
 }
@@ -1228,6 +1368,55 @@ function setCashFlowState(state, realSales = 0, investment = 0, diff = 0) {
     if (cashflowIcon) cashflowIcon.className = 'fa-solid fa-circle-check';
     if (cashflowTitle) cashflowTitle.textContent = `安全：キャッシュ増加中（資金増減: +${formatCurrency(diff)}）`;
     if (cashflowDesc) cashflowDesc.innerHTML = `今月の仕入れ総額 <strong>${formatCurrency(investment)}</strong> に対し、手元に入った純回収額（売上から送料・手数料を引いた実質売上）は <strong>${formatCurrency(realSales)}</strong> です。<br>手元の資金が実質 <strong>${formatCurrency(diff)}</strong> 増えており、良好に資金が回っています。この調子で健全なキャッシュフローを維持しましょう！`;
+  }
+}
+
+function setYearlyDiagnosticState(state, profit = 0, rate = 0) {
+  if (!yearlyDiagnosticCard) return;
+  yearlyDiagnosticCard.className = 'diagnostic-card';
+
+  if (state === 'empty') {
+    yearlyDiagnosticCard.classList.add('state-empty');
+    if (yearlyDiagnosticIcon) yearlyDiagnosticIcon.className = 'fa-solid fa-circle-info';
+    if (yearlyDiagnosticTitle) yearlyDiagnosticTitle.textContent = '登録データがありません';
+    if (yearlyDiagnosticDesc) yearlyDiagnosticDesc.textContent = '選択された年の仕入れ、および販売データが登録されていません。まずは「在庫管理」ページから商品の登録や、売了データの更新を行ってください。';
+  } else if (state === 'warning') {
+    yearlyDiagnosticCard.classList.add('state-warning');
+    if (yearlyDiagnosticIcon) yearlyDiagnosticIcon.className = 'fa-solid fa-circle-exclamation';
+    if (yearlyDiagnosticTitle) yearlyDiagnosticTitle.textContent = `改善が必要です (赤字: ${formatCurrency(profit)})`;
+    if (yearlyDiagnosticDesc) yearlyDiagnosticDesc.innerHTML = `今年の売了利益は赤字、または仕入れ（総投資）に対して回収が追いついていません。まだ売れていない在庫の販売を最優先で進めるか、今後の「仕入れ値」と「売り値」のバランスを見直しましょう。`;
+  } else if (state === 'good') {
+    yearlyDiagnosticCard.classList.add('state-good');
+    if (yearlyDiagnosticIcon) yearlyDiagnosticIcon.className = 'fa-solid fa-circle-check';
+    if (yearlyDiagnosticTitle) yearlyDiagnosticTitle.textContent = `黒字運用です (確定利益: ${formatCurrency(profit)} / 利益率: ${rate}%)`;
+    if (yearlyDiagnosticDesc) yearlyDiagnosticDesc.innerHTML = `今年は全体として売了商品から利益が出ています！順調に資産回収ができています。さらに「手残り利益」を大きくするために、経費削減や梱包方法を試したり、販路を最適化しましょう。`;
+  } else if (state === 'excellent') {
+    yearlyDiagnosticCard.classList.add('state-excellent');
+    if (yearlyDiagnosticIcon) yearlyDiagnosticIcon.className = 'fa-solid fa-star';
+    if (yearlyDiagnosticTitle) yearlyDiagnosticTitle.textContent = `絶好調です！ (確定利益: ${formatCurrency(profit)} / 利益率: ${rate}%)`;
+    if (yearlyDiagnosticDesc) yearlyDiagnosticDesc.innerHTML = `今年の売了商品の利益率が <strong>${rate}%</strong> と非常に高く、極めて効率の良い取引ができています！年間を通して現在の仕入れ基準と売り方がバッチリ噛み合っています。この調子で取引規模を拡大していきましょう！`;
+  }
+}
+
+function setYearlyCashFlowState(state, realSales = 0, investment = 0, diff = 0) {
+  if (!yearlyCashflowCard) return;
+  yearlyCashflowCard.className = 'diagnostic-card';
+
+  if (state === 'empty') {
+    yearlyCashflowCard.classList.add('state-empty');
+    if (yearlyCashflowIcon) yearlyCashflowIcon.className = 'fa-solid fa-circle-info';
+    if (yearlyCashflowTitle) yearlyCashflowTitle.textContent = 'データなし';
+    if (yearlyCashflowDesc) yearlyCashflowDesc.textContent = '当年中に仕入れた商品、または販売完了した商品のデータがありません。';
+  } else if (state === 'warning') {
+    yearlyCashflowCard.classList.add('state-warning');
+    if (yearlyCashflowIcon) yearlyCashflowIcon.className = 'fa-solid fa-triangle-exclamation';
+    if (yearlyCashflowTitle) yearlyCashflowTitle.textContent = `注意：仕入れ超過です（年間資金増減: -${formatCurrency(Math.abs(diff))}）`;
+    if (yearlyCashflowDesc) yearlyCashflowDesc.innerHTML = `今年の仕入れ総額（出ていくお金）<strong>${formatCurrency(investment)}</strong> に対し、手元に入った純回収額（売上から送料・手数料を引いた実質売上）は <strong>${formatCurrency(realSales)}</strong> です。<br>年間での手元資金が実質 <strong>${formatCurrency(Math.abs(diff))}</strong> 減っており、<strong>資金ショートを防ぐため注意が必要</strong>です。過剰仕入れになっていないか仕入れ判断を見直すか、不良在庫の早期現金化を進めましょう！`;
+  } else if (state === 'safe') {
+    yearlyCashflowCard.classList.add('state-excellent');
+    if (yearlyCashflowIcon) yearlyCashflowIcon.className = 'fa-solid fa-circle-check';
+    if (yearlyCashflowTitle) yearlyCashflowTitle.textContent = `安全：キャッシュ増加中（年間資金増減: +${formatCurrency(diff)}）`;
+    if (yearlyCashflowDesc) yearlyCashflowDesc.innerHTML = `今年の仕入れ総額 <strong>${formatCurrency(investment)}</strong> に対し、手元に入った純回収額（売上から送料・手数料を引いた実質売上）は <strong>${formatCurrency(realSales)}</strong> です。<br>手元の資金が実質 <strong>${formatCurrency(diff)}</strong> 増えており、年間を通じて良好に資金が回っています。健全なキャッシュフローが維持できています！`;
   }
 }
 
@@ -1336,6 +1525,111 @@ function renderChart(investment, sales, profit) {
     });
   } catch (e) {
     console.error('グラフの生成中にエラーが発生しました:', e);
+  }
+}
+
+function renderYearlyChart(investment, sales, profit) {
+  const canvas = document.getElementById('yearly-revenue-chart');
+  if (!canvas) return;
+
+  if (typeof Chart !== 'undefined') {
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) {
+      try {
+        existingChart.destroy();
+      } catch (e) { }
+    }
+  }
+
+  const ctx = canvas.getContext('2d');
+
+  if (yearlyRevenueChartInstance) {
+    try {
+      yearlyRevenueChartInstance.destroy();
+    } catch (e) { }
+    yearlyRevenueChartInstance = null;
+  }
+
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js が読み込まれていません。');
+    return;
+  }
+
+  const safeInvestment = isNaN(investment) ? 0 : Number(investment);
+  const safeSales = isNaN(sales) ? 0 : Number(sales);
+  const safeProfit = isNaN(profit) ? 0 : Number(profit);
+
+  const profitColor = safeProfit >= 0 ? 'rgba(16, 185, 129, 0.85)' : 'rgba(239, 68, 68, 0.85)';
+  const profitBorderColor = safeProfit >= 0 ? '#10b981' : '#ef4444';
+
+  try {
+    yearlyRevenueChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['年間仕入れ額', '年間売上額', '年間手残り利益'],
+        datasets: [{
+          label: '年間収支規模 (円)',
+          data: [safeInvestment, safeSales, safeProfit],
+          backgroundColor: [
+            'rgba(2, 132, 199, 0.75)',
+            'rgba(59, 130, 246, 0.4)',
+            profitColor
+          ],
+          borderColor: [
+            '#0284c7',
+            '#3b82f6',
+            profitBorderColor
+          ],
+          borderWidth: 1.5,
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                return ' ' + context.raw.toLocaleString('ja-JP') + ' 円';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: '#e2e8f0'
+            },
+            ticks: {
+              font: {
+                family: 'Noto Sans JP'
+              },
+              callback: function (value) {
+                return '¥' + value.toLocaleString('ja-JP');
+              }
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              font: {
+                family: 'Noto Sans JP',
+                weight: 'bold'
+              }
+            }
+          }
+        }
+      }
+    });
+  } catch (e) {
+    console.error('年間グラフの生成中にエラーが発生しました:', e);
   }
 }
 
@@ -2424,9 +2718,379 @@ function startSyncData() {
   });
 }
 
+// --- 月別集計ページの描画 ---
+function renderMonthlySummaryPage() {
+  if (!monthlySummaryTableBody || !monthlySummaryMobileList) return;
+
+  // 1. すべての年月をリストアップ (仕入れ日、販売日基準)
+  const allMonths = [];
+  products.forEach(p => {
+    if (p.purchaseDate) allMonths.push(p.purchaseDate.substring(0, 7)); // YYYY/MM
+    if (p.saleDate) allMonths.push(p.saleDate.substring(0, 7)); // YYYY/MM
+  });
+
+  const uniqueMonths = [...new Set(allMonths.filter(Boolean))];
+  uniqueMonths.sort((a, b) => b.localeCompare(a)); // 新しい月順
+
+  monthlySummaryTableBody.innerHTML = '';
+  monthlySummaryMobileList.innerHTML = '';
+
+  if (uniqueMonths.length === 0) {
+    monthlySummaryTableBody.innerHTML = '<tr><td colspan="5" class="text-center">データがありません。</td></tr>';
+    monthlySummaryMobileList.innerHTML = '<div class="empty-state"><p>データがありません。</p></div>';
+    if (soldListSection) soldListSection.classList.add('hidden');
+    return;
+  }
+
+  uniqueMonths.forEach(month => {
+    // 該当月の売上、利益の集計 (販売日基準)
+    const monthlySoldProducts = products.filter(p => p.status === 'sold' && p.saleDate && p.saleDate.startsWith(month));
+    const totalSales = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.sellPrice) || 0), 0);
+    const totalShipping = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.shipping) || 0), 0);
+    const totalFee = monthlySoldProducts.reduce((sum, item) => sum + calculateFee(item.sellPrice, item.feeRate, item.fee, item.salesChannel), 0);
+    const totalCost = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    // 利益 ＝ 販売商品の売上 - 送料 - 手数料 - その商品の仕入れ値
+    const totalProfit = totalSales - totalShipping - totalFee - totalCost;
+    const profitRate = totalSales > 0 ? Math.round((totalProfit / totalSales) * 100) : 0;
+
+    // 総回収額 (売上 - 送料 - 手数料)
+    const totalRecovery = totalSales - totalShipping - totalFee;
+
+    // 該当月の仕入れ総額 (仕入れ日基準)
+    const monthlyInvestedProducts = products.filter(p => p.purchaseDate && p.purchaseDate.startsWith(month));
+    const totalInvestment = monthlyInvestedProducts.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+
+    // 該当月仕入れの在庫残り仕入れ額
+    const stockLeftCost = monthlyInvestedProducts.filter(p => p.status === 'inventory').reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+
+    const parts = month.split('/');
+    const displayMonthStr = `${parts[0]}年${parts[1]}月`;
+
+    // 利益のクラス指定
+    let profitClass = 'profit-zero';
+    if (totalProfit > 0) profitClass = 'profit-positive';
+    else if (totalProfit < 0) profitClass = 'profit-negative';
+
+    // 行選択状態
+    const isSelected = selectedMonthlySummaryMonth === month;
+    const selectedClass = isSelected ? 'selected-row' : '';
+
+    // PCテーブル用行
+    const tr = document.createElement('tr');
+    if (selectedClass) tr.className = selectedClass;
+    tr.innerHTML = `
+      <td><strong>${displayMonthStr}</strong></td>
+      <td class="text-right price-text">${formatCurrency(totalSales)}</td>
+      <td class="text-right price-text">${formatCurrency(totalRecovery)}</td>
+      <td class="text-right">
+        <span class="${profitClass}">${formatCurrency(totalProfit)}</span>
+        <span class="profit-rate" style="display:inline;">(${profitRate}%)</span>
+      </td>
+      <td class="text-right price-text">${formatCurrency(totalInvestment)}</td>
+      <td class="text-right price-text">${formatCurrency(stockLeftCost)}</td>
+    `;
+    tr.onclick = function() {
+      // 選択状態の切り替え
+      document.querySelectorAll('.monthly-summary-table tbody tr').forEach(el => el.classList.remove('selected-row'));
+      document.querySelectorAll('.monthly-mobile-card').forEach(el => el.classList.remove('selected-card'));
+      
+      if (selectedMonthlySummaryMonth === month) {
+        selectedMonthlySummaryMonth = null;
+        if (soldListSection) soldListSection.classList.add('hidden');
+      } else {
+        selectedMonthlySummaryMonth = month;
+        tr.classList.add('selected-row');
+        renderSoldProductList(month);
+      }
+    };
+    monthlySummaryTableBody.appendChild(tr);
+
+    // モバイル用カード
+    const cardSelectedClass = isSelected ? 'selected-card' : '';
+    const mobileCard = document.createElement('div');
+    mobileCard.className = `monthly-mobile-card ${cardSelectedClass}`;
+    mobileCard.innerHTML = `
+      <div class="monthly-mobile-card-header">
+        <span class="monthly-mobile-card-title">${displayMonthStr}</span>
+        <span class="${profitClass}" style="font-weight: 700;">利益: ${formatCurrency(totalProfit)} (${profitRate}%)</span>
+      </div>
+      <div class="monthly-mobile-card-body">
+        <div class="monthly-mobile-card-details">
+          <div class="monthly-mobile-detail-item">
+            <span class="label">売上額</span>
+            <span class="value">${formatCurrency(totalSales)}</span>
+          </div>
+          <div class="monthly-mobile-detail-item">
+            <span class="label">回収額</span>
+            <span class="value" style="color: var(--accent-color);">${formatCurrency(totalRecovery)}</span>
+          </div>
+          <div class="monthly-mobile-detail-item">
+            <span class="label">仕入れ額</span>
+            <span class="value">${formatCurrency(totalInvestment)}</span>
+          </div>
+          <div class="monthly-mobile-detail-item">
+            <span class="label">在庫残り</span>
+            <span class="value" style="color: var(--primary-color);">${formatCurrency(stockLeftCost)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+    mobileCard.onclick = function() {
+      document.querySelectorAll('.monthly-summary-table tbody tr').forEach(el => el.classList.remove('selected-row'));
+      document.querySelectorAll('.monthly-mobile-card').forEach(el => el.classList.remove('selected-card'));
+
+      if (selectedMonthlySummaryMonth === month) {
+        selectedMonthlySummaryMonth = null;
+        if (soldListSection) soldListSection.classList.add('hidden');
+      } else {
+        selectedMonthlySummaryMonth = month;
+        mobileCard.classList.add('selected-card');
+        renderSoldProductList(month);
+      }
+    };
+    monthlySummaryMobileList.appendChild(mobileCard);
+  });
+
+  // すでに月が選択されていれば、その表示を更新する
+  if (selectedMonthlySummaryMonth) {
+    if (uniqueMonths.includes(selectedMonthlySummaryMonth)) {
+      renderSoldProductList(selectedMonthlySummaryMonth);
+    } else {
+      selectedMonthlySummaryMonth = null;
+      if (soldListSection) soldListSection.classList.add('hidden');
+    }
+  }
+}
+
+// 該当月に売れた商品のリスト描画
+function renderSoldProductList(month) {
+  if (!soldListSection || !soldListTitle || !soldTableBody || !soldMobileList) return;
+
+  const parts = month.split('/');
+  soldListTitle.textContent = `${parts[0]}年${parts[1]}月`;
+
+  const soldProducts = products.filter(p => p.status === 'sold' && p.saleDate && p.saleDate.startsWith(month));
+
+  soldTableBody.innerHTML = '';
+  soldMobileList.innerHTML = '';
+
+  if (soldProducts.length === 0) {
+    soldTableBody.innerHTML = '<tr><td colspan="7" class="text-center">この月に売れた商品は登録されていません。</td></tr>';
+    soldMobileList.innerHTML = '<div class="empty-state"><p>売れた商品はありません。</p></div>';
+    soldListSection.classList.remove('hidden');
+    return;
+  }
+
+  soldProducts.forEach(product => {
+    const price = Number(product.price) || 0;
+    const sellPrice = Number(product.sellPrice) || 0;
+    const shipping = Number(product.shipping) || 0;
+    const fee = calculateFee(sellPrice, product.feeRate, product.fee, product.salesChannel);
+    const profit = sellPrice - price - shipping - fee;
+    const profitRate = sellPrice > 0 ? Math.round((profit / sellPrice) * 100) : 0;
+
+    let itemProfitClass = 'profit-zero';
+    if (profit > 0) itemProfitClass = 'profit-positive';
+    else if (profit < 0) itemProfitClass = 'profit-negative';
+
+    const currentFeeRate = product.feeRate !== undefined && product.feeRate !== null && product.feeRate !== ''
+      ? product.feeRate
+      : (CHANNEL_FEES[product.salesChannel || 'mercari'] || 0);
+
+    const feeText = `${formatCurrency(fee)} <span class="profit-rate" style="display:inline;">(${currentFeeRate}%)</span>`;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <strong>${escapeHtml(product.name)}</strong>
+        <br>
+        <span class="category-tag">${escapeHtml(product.category || 'その他')}</span>
+        ${product.purchaseStore ? `<span class="category-tag store-tag">🏪 ${escapeHtml(product.purchaseStore)}</span>` : ''}
+      </td>
+      <td class="text-right price-text">${formatCurrency(price)}</td>
+      <td class="text-right price-text">${formatCurrency(sellPrice)}</td>
+      <td class="text-right price-text">${formatCurrency(shipping)}</td>
+      <td class="text-right price-text">${feeText}</td>
+      <td class="text-right">
+        <span class="${itemProfitClass}">${formatCurrency(profit)}</span>
+        <span class="profit-rate">(${profitRate}%)</span>
+      </td>
+      <td class="text-center date-text">
+        仕: ${product.purchaseDate || '-'}
+        <br>
+        売: ${product.saleDate || '-'}
+      </td>
+    `;
+    soldTableBody.appendChild(tr);
+
+    // スマホ用カードの描画
+    const card = document.createElement('div');
+    card.className = 'mobile-product-card';
+    card.innerHTML = `
+      <div class="mobile-card-header">
+        <div class="mobile-card-tags">
+          <span class="category-tag badge-category">${escapeHtml(product.category || 'その他')}</span>
+          ${product.purchaseStore ? `<span class="category-tag badge-category store-tag">🏪 ${escapeHtml(product.purchaseStore)}</span>` : ''}
+        </div>
+        <h4 class="mobile-product-name">${escapeHtml(product.name)}</h4>
+      </div>
+      <div class="mobile-card-body">
+        <div class="mobile-card-details">
+          <div class="mobile-detail-item">仕入: <span>${formatCurrency(price)}</span></div>
+          <div class="mobile-detail-item">売値: <span>${formatCurrency(sellPrice)}</span></div>
+          <div class="mobile-detail-item">送料: <span>${formatCurrency(shipping)}</span></div>
+          <div class="mobile-detail-item">手数料: <span>${formatCurrency(fee)} (${currentFeeRate}%)</span></div>
+        </div>
+        <div class="mobile-card-profit-row highlight-profit">
+          <span class="profit-label">利益 (利益率):</span>
+          <span class="profit-value ${itemProfitClass}">
+            ${formatCurrency(profit)} <span class="profit-rate-percent">(${profitRate}%)</span>
+          </span>
+        </div>
+      </div>
+      <div class="mobile-card-footer">
+        <span class="date-text"><i class="fa-regular fa-calendar"></i> 仕: ${product.purchaseDate || '-'} / 売: ${product.saleDate || '-'}</span>
+      </div>
+    `;
+    soldMobileList.appendChild(card);
+  });
+
+  soldListSection.classList.remove('hidden');
+  soldListSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// 閉じるボタンのイベントハンドラー
+if (closeSoldListBtn) {
+  closeSoldListBtn.onclick = function() {
+    selectedMonthlySummaryMonth = null;
+    if (soldListSection) soldListSection.classList.add('hidden');
+    document.querySelectorAll('.monthly-summary-table tbody tr').forEach(el => el.classList.remove('selected-row'));
+    document.querySelectorAll('.monthly-mobile-card').forEach(el => el.classList.remove('selected-card'));
+  };
+}
+
+// CSVダウンロード処理
+function downloadMonthlySummaryCSV() {
+  if (products.length === 0) {
+    alert('ダウンロードするデータがありません。');
+    return;
+  }
+
+  // 1. すべての年月をリストアップ
+  const allMonths = [];
+  products.forEach(p => {
+    if (p.purchaseDate) allMonths.push(p.purchaseDate.substring(0, 7)); // YYYY/MM
+    if (p.saleDate) allMonths.push(p.saleDate.substring(0, 7)); // YYYY/MM
+  });
+
+  const uniqueMonths = [...new Set(allMonths.filter(Boolean))];
+  uniqueMonths.sort((a, b) => b.localeCompare(a)); // 新しい月順
+
+  // 2. CSV文字列の構築 (BOM付きUTF-8)
+  let csvContent = '\uFEFF'; // BOMを追加
+  csvContent += '年月,売上総額,総回収額,手残り利益,利益率(%),仕入れ総額,在庫残り仕入れ額\n';
+
+  uniqueMonths.forEach(month => {
+    // 該当月の売上、利益の集計 (販売日基準)
+    const monthlySoldProducts = products.filter(p => p.status === 'sold' && p.saleDate && p.saleDate.startsWith(month));
+    const totalSales = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.sellPrice) || 0), 0);
+    const totalShipping = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.shipping) || 0), 0);
+    const totalFee = monthlySoldProducts.reduce((sum, item) => sum + calculateFee(item.sellPrice, item.feeRate, item.fee, item.salesChannel), 0);
+    const totalCost = monthlySoldProducts.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+    const totalProfit = totalSales - totalShipping - totalFee - totalCost;
+    const profitRate = totalSales > 0 ? Math.round((totalProfit / totalSales) * 100) : 0;
+    const totalRecovery = totalSales - totalShipping - totalFee;
+
+    // 該当月の仕入れ総額 (仕入れ日基準)
+    const monthlyInvestedProducts = products.filter(p => p.purchaseDate && p.purchaseDate.startsWith(month));
+    const totalInvestment = monthlyInvestedProducts.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+
+    // 該当月仕入れの在庫残り仕入れ額
+    const stockLeftCost = monthlyInvestedProducts.filter(p => p.status === 'inventory').reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+
+    const parts = month.split('/');
+    const displayMonthStr = `${parts[0]}年${parts[1]}月`;
+
+    csvContent += `"${displayMonthStr}",${totalSales},${totalRecovery},${totalProfit},${profitRate},${totalInvestment},${stockLeftCost}\n`;
+  });
+
+  // 3. Blobを生成してダウンロード
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  
+  const now = new Date();
+  const dateStr = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+  a.download = `月別集計_${dateStr}.csv`;
+  
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// 売却済商品リストのCSVダウンロード処理
+function downloadSoldListCSV() {
+  if (!selectedMonthlySummaryMonth) {
+    alert('ダウンロード対象の月が選択されていません。月別集計の行をクリックして選択してください。');
+    return;
+  }
+
+  const soldProducts = products.filter(p => p.status === 'sold' && p.saleDate && p.saleDate.startsWith(selectedMonthlySummaryMonth));
+
+  if (soldProducts.length === 0) {
+    alert('この月に売れた商品は登録されていません。');
+    return;
+  }
+
+  // BOM付きUTF-8 CSV作成
+  let csvContent = '\uFEFF';
+  csvContent += '商品名,カテゴリー,購入店,仕入れ価格,販売価格,送料,手数料,手数料率(%),利益,利益率(%),販売先,仕入れ日,販売日\n';
+
+  soldProducts.forEach(product => {
+    const price = Number(product.price) || 0;
+    const sellPrice = Number(product.sellPrice) || 0;
+    const shipping = Number(product.shipping) || 0;
+    const fee = calculateFee(sellPrice, product.feeRate, product.fee, product.salesChannel);
+    const profit = sellPrice - price - shipping - fee;
+    const profitRate = sellPrice > 0 ? Math.round((profit / sellPrice) * 100) : 0;
+    const feeRate = product.feeRate !== undefined && product.feeRate !== null && product.feeRate !== ''
+      ? product.feeRate
+      : (CHANNEL_FEES[product.salesChannel || 'mercari'] || 0);
+
+    const escapeCSV = (str) => `"${(str || '').replace(/"/g, '""')}"`;
+
+    csvContent += `${escapeCSV(product.name)},${escapeCSV(product.category)},${escapeCSV(product.purchaseStore)},${price},${sellPrice},${shipping},${fee},${feeRate},${profit},${profitRate},${escapeCSV(product.salesChannel)},"${product.purchaseDate || '-'}","${product.saleDate || '-'}"\n`;
+  });
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  
+  const now = new Date();
+  const dateStr = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+  const monthFileName = selectedMonthlySummaryMonth.replace(/\//g, '-');
+  a.download = `売却済商品リスト_${monthFileName}_${dateStr}.csv`;
+  
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // --- 初期化 ---
 window.onload = function () {
   setupTabs();
+
+  if (downloadMonthlySummaryBtn) {
+    downloadMonthlySummaryBtn.onclick = downloadMonthlySummaryCSV;
+  }
+
+  if (downloadSoldListBtn) {
+    downloadSoldListBtn.onclick = downloadSoldListCSV;
+  }
 
   if (db) {
     // Firebase設定済みの場合は認証状態を監視
